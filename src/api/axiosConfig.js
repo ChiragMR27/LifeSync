@@ -1,13 +1,13 @@
 import axios from 'axios';
 
-// 1. Connection to Live Auth Service on Render
+// 1. Connection to LOCAL Auth Service
 export const authApi = axios.create({
-    baseURL: 'https://lifesync-auth-backend.onrender.com/api/auth' 
+    baseURL: 'http://localhost:8081/api/auth' 
 });
 
-// 2. Connection to Live Family Service on Render
+// 2. Connection to LOCAL Family Service
 export const familyApi = axios.create({
-    baseURL: 'https://lifesync-family-backend.onrender.com/api/family'
+    baseURL: 'http://localhost:8082/api/family'
 });
 
 // 3. The Auto-Token Attacher

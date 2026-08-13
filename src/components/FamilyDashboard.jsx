@@ -10,7 +10,8 @@ const FamilyDashboard = () => {
   // Fetch the list of family members when the component loads
   const fetchFamilyMembers = async () => {
     try {
-      const response = await familyApi.get('/'); // Sends GET to http://localhost:8082/api/family
+      // FIX: Removed the trailing slash. Passes an empty string.
+      const response = await familyApi.get(''); 
       setFamilyMembers(response.data);
     } catch (error) {
       console.error("Error fetching family members:", error);
@@ -26,7 +27,8 @@ const FamilyDashboard = () => {
   const handleAddMember = async (e) => {
     e.preventDefault();
     try {
-      await familyApi.post('/', { 
+      // FIX: Removed the trailing slash here as well.
+      await familyApi.post('', { 
         name: name, 
         relationship: relationship, 
         age: parseInt(age) 

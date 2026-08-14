@@ -1,13 +1,13 @@
 import axios from 'axios';
 
-// 1. Connection to LOCAL Auth Service
+// 1. Connection to CLOUD Auth Service
 export const authApi = axios.create({
-    baseURL: 'http://localhost:8081/api/auth' 
+    baseURL: 'https://auth-service-hx5f.onrender.com/api/auth' 
 });
 
-// 2. Connection to LOCAL Family Service
+// 2. Connection to CLOUD Family Service
 export const familyApi = axios.create({
-    baseURL: 'http://localhost:8082/api/family'
+    baseURL: 'https://lifesync-family-backend.onrender.com/api/family'
 });
 
 // 3. The Auto-Token Attacher

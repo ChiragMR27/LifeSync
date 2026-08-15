@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-// 1. Connection to CLOUD Auth Service
+// 1. Connection to LOCAL Auth Service
 export const authApi = axios.create({
     baseURL: 'https://auth-service-hx5f.onrender.com/api/auth' 
 });
 
-// 2. Connection to CLOUD Family Service
+// 2. Connection to LOCAL Family Service
 export const familyApi = axios.create({
     baseURL: 'https://lifesync-family-backend.onrender.com/api/family'
 });

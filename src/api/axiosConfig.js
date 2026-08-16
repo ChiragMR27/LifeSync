@@ -11,12 +11,14 @@ export const familyApi = axios.create({
 });
 
 // 3. The Auto-Token Attacher
-familyApi.interceptors.request.use((config) => {
+const attachToken = (config) => {
     const token = localStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
-}, (error) => {
-    return Promise.reject(error);
-});
+};
+
+// THE FIX: Now BOTH APIs will automatically carry the JWT token!
+authApi.interceptors.request.use(attachToken, (error) => Promise.reject(error));
+familyApi.interceptors.request.use(attachToken, (error) => Promise.reject(error));

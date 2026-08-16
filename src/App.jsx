@@ -1,57 +1,72 @@
 import React, { useState } from 'react';
 import Auth from './components/Auth';
 import FamilyDashboard from './components/FamilyDashboard';
+import CreateGroup from './components/CreateGroup';
 import GroceryList from './components/GroceryList';
+import Profile from './components/Profile'; 
+import CreateUser from './components/CreateUser'; // NEW
 import './App.css';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
-  const [activeTab, setActiveTab] = useState('family'); 
+  const [currentView, setCurrentView] = useState('home'); 
+  
+  const [activeGroupId, setActiveGroupId] = useState(null);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
     setIsAuthenticated(false);
-    setActiveTab('family'); 
+    setCurrentView('home'); 
+  };
+
+  const handleNavigate = (view, groupId = null) => {
+    if (groupId) setActiveGroupId(groupId);
+    setCurrentView(view);
   };
 
   return (
-    <div>
-      {/* 
-        The entire header (including the title and buttons) 
-        will ONLY show up if the user is authenticated 
-      */}
-      {isAuthenticated && (
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 30px', backgroundColor: '#282c34', color: 'white' }}>
-          <h1 style={{ margin: 0 }}>LifeSync App</h1>
-          
-          <div style={{ display: 'flex', gap: '15px' }}>
-            <button 
-              onClick={() => setActiveTab('family')} 
-              style={{ padding: '8px 15px', cursor: 'pointer', backgroundColor: activeTab === 'family' ? '#007bff' : '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>
-              Family Members
-            </button>
-            <button 
-              onClick={() => setActiveTab('groceries')} 
-              style={{ padding: '8px 15px', cursor: 'pointer', backgroundColor: activeTab === 'groceries' ? '#ffc107' : '#6c757d', color: '#000', border: 'none', borderRadius: '4px' }}>
-              Groceries
-            </button>
-            <button onClick={handleLogout} style={{ padding: '8px 15px', cursor: 'pointer', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px' }}>
-              Logout
-            </button>
-          </div>
-        </header>
-      )}
-
-      <main>
+    <div style={{ backgroundColor: '#000', minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
+      <div style={{ width: '100%', maxWidth: '400px', backgroundColor: '#0a0a0c', position: 'relative', overflowY: 'auto', overflowX: 'hidden', minHeight: '100vh' }}>
+        
         {!isAuthenticated ? (
           <Auth onLoginSuccess={() => setIsAuthenticated(true)} />
         ) : (
-          <div>
-            {activeTab === 'family' && <FamilyDashboard />}
-            {activeTab === 'groceries' && <GroceryList />}
-          </div>
+          <>
+            {currentView === 'home' && (
+              <FamilyDashboard 
+                onNavigate={handleNavigate} 
+                onLogout={handleLogout} 
+              />
+            )}
+            {currentView === 'create-group' && (
+              <CreateGroup 
+                onBack={() => setCurrentView('home')} 
+                onCreate={() => setCurrentView('home')} 
+              />
+            )}
+            {currentView === 'grocery-list' && (
+              <GroceryList 
+                groupId={activeGroupId} 
+                onBack={() => setCurrentView('home')} 
+              />
+            )}
+            {currentView === 'profile' && (
+              <Profile 
+                onBack={() => setCurrentView('home')} 
+                onLogout={handleLogout}
+              />
+            )}
+            {/* NEW: Admin Create User Route */}
+            {currentView === 'create-user' && (
+              <CreateUser 
+                onBack={() => setCurrentView('home')} 
+              />
+            )}
+          </>
         )}
-      </main>
+
+      </div>
     </div>
   );
 }

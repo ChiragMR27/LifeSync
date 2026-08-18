@@ -67,10 +67,10 @@ const Auth = ({ onLoginSuccess }) => {
       const response = await authApi.post('/login', { username, password });
       
       const token = response.data.token;
-      const loggedInUser = response.data.username; // Catch the username from Spring Boot
+      const actualEmail = response.data.email; 
       
       localStorage.setItem('token', token); 
-      localStorage.setItem('userEmail', loggedInUser); // Save it so React remembers!
+      localStorage.setItem('userEmail', actualEmail); 
       
       onLoginSuccess(); 
     } catch (error) {

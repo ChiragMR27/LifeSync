@@ -59,11 +59,11 @@ const Auth = ({ onLoginSuccess }) => {
     }
   };
 
-  // THE FIX: STANDARD LOGIN
   const handleLogin = async (e) => {
     e.preventDefault();
     setMessage('');
     try {
+      // The backend now accepts 'username' payload as EITHER an email or a username
       const response = await authApi.post('/login', { username, password });
       
       const token = response.data.token;
@@ -321,11 +321,12 @@ const Auth = ({ onLoginSuccess }) => {
               </div>
             ) : (
               <div style={styles.inputGroup}>
-                <label style={styles.label}>Username</label>
+                {/* THE FIX: Updated label and placeholder for clarity */}
+                <label style={styles.label}>Username or Email</label>
                 <div style={styles.inputContainer}>
                   <input
                     type="text"
-                    placeholder="Enter username"
+                    placeholder="Enter username or email"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required

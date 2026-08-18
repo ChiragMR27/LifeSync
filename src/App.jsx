@@ -5,7 +5,8 @@ import CreateGroup from './components/CreateGroup';
 import GroceryList from './components/GroceryList';
 import Profile from './components/Profile'; 
 import CreateUser from './components/CreateUser'; 
-import ChatDashboard from './components/ChatDashboard'; // NEW CHAT
+import ChatDashboard from './components/ChatDashboard'; 
+import GroupChat from './components/GroupChat'; // NEW: Group Chat UI
 import './App.css';
 
 function App() {
@@ -63,9 +64,15 @@ function App() {
                 onBack={() => setCurrentView('home')} 
               />
             )}
-            {/* NEW: 1-on-1 Private Chat Route */}
             {currentView === 'chat-dashboard' && (
               <ChatDashboard 
+                onBack={() => setCurrentView('home')} 
+              />
+            )}
+            {/* THE FIX: Added routing for the WhatsApp-style Group Chat */}
+            {currentView === 'group-chat' && (
+              <GroupChat 
+                groupId={activeGroupId}
                 onBack={() => setCurrentView('home')} 
               />
             )}

@@ -46,10 +46,10 @@ const FamilyDashboard = ({ onNavigate }) => {
                 <div 
                   key={group.id} 
                   style={styles.groupCard}
-                  // THE FIX: Routes the user depending on what type of group they clicked!
+                  // THE FIX: Now specifically routes to the Group Chat room!
                   onClick={() => {
                     if (group.type === 'Grocery') onNavigate('grocery-list', group.id);
-                    else if (group.type === 'Chat') onNavigate('chat-dashboard'); 
+                    else if (group.type === 'Chat') onNavigate('group-chat', group.id); 
                   }}
                 >
                   <div>

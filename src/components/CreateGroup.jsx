@@ -8,16 +8,15 @@ const CreateGroup = ({ onBack, onCreate }) => {
   const handleCreate = async (e) => {
     e.preventDefault();
     
-    // Attempt to get the logged-in user's email from localStorage
-    // (If it doesn't exist yet, we use a fallback placeholder)
     const currentUserEmail = localStorage.getItem('userEmail') || 'admin@placeholder.com';
     
     try {
       await familyApi.post('/groups', {
         name: groupName,
-        type: category === 'grocery' ? 'Grocery' : 'Household',
-        badgeColor: category === 'grocery' ? '#00e5ff' : '#9c27b0',
-        leaderEmail: currentUserEmail // Send the leader to the database!
+        // THE FIX: Allows creating a Chat group
+        type: category === 'grocery' ? 'Grocery' : 'Chat',
+        badgeColor: category === 'grocery' ? '#00e5ff' : '#ff4d4d',
+        leaderEmail: currentUserEmail 
       });
 
       onCreate(); 
@@ -43,6 +42,8 @@ const CreateGroup = ({ onBack, onCreate }) => {
             onChange={(e) => setCategory(e.target.value)}
           >
             <option value="grocery">Grocery</option>
+            {/* THE FIX: Added Chat option to the UI */}
+            <option value="chat">Chat</option>
           </select>
         </div>
 
@@ -50,7 +51,7 @@ const CreateGroup = ({ onBack, onCreate }) => {
           <label style={styles.label}>Group Name</label>
           <input 
             type="text" 
-            placeholder="e.g. Family Groceries, My Gym Buddies" 
+            placeholder={category === 'chat' ? "e.g. Family Chat, Besties" : "e.g. Family Groceries, My Gym Buddies"}
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
             style={styles.input} 

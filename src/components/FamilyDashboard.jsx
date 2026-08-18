@@ -46,7 +46,11 @@ const FamilyDashboard = ({ onNavigate }) => {
                 <div 
                   key={group.id} 
                   style={styles.groupCard}
-                  onClick={() => group.type === 'Grocery' ? onNavigate('grocery-list', group.id) : null}
+                  // THE FIX: Routes the user depending on what type of group they clicked!
+                  onClick={() => {
+                    if (group.type === 'Grocery') onNavigate('grocery-list', group.id);
+                    else if (group.type === 'Chat') onNavigate('chat-dashboard'); 
+                  }}
                 >
                   <div>
                     <h3 style={styles.groupName}>{group.name}</h3>

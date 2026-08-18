@@ -7,15 +7,14 @@ const ChatDashboard = ({ onBack }) => {
   const [messageInput, setMessageInput] = useState('');
   const [messages, setMessages] = useState([]);
   
-  // THE FIX: Added state to hold the list of incoming conversations
   const [recentChats, setRecentChats] = useState([]);
 
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
-  // Fetch the list of people who have messaged you
   const fetchRecentChats = async () => {
     try {
       const response = await authApi.get(`/chat/recent?email=${currentUserEmail}`);
+      // Response now contains the email and the username from the Java backend
       setRecentChats(response.data);
     } catch (error) {
       console.error("Error fetching recent chats:", error);
@@ -32,7 +31,6 @@ const ChatDashboard = ({ onBack }) => {
     }
   };
 
-  // Check for new incoming chats on the main screen every 5 seconds
   useEffect(() => {
     if (!activeChat) {
       fetchRecentChats();
@@ -41,7 +39,6 @@ const ChatDashboard = ({ onBack }) => {
     }
   }, [activeChat]);
 
-  // Check for new messages inside an active chat every 3 seconds
   useEffect(() => {
     if (activeChat) {
       fetchMessages();
@@ -108,13 +105,20 @@ const ChatDashboard = ({ onBack }) => {
   };
 
   if (activeChat) {
+    // THE FIX: Look up the username to display it cleanly at the top of the active chat
+    const activeContact = recentChats.find(c => c.email === activeChat);
+    const displayName = activeContact ? activeContact.username : activeChat.split('@')[0];
+
     return (
       <div style={styles.container}>
         <div style={styles.header}>
           <button onClick={() => setActiveChat(null)} style={styles.backBtn}>←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={styles.avatarMini}>👤</div>
-            <h2 style={styles.title}>{activeChat.split('@')[0]}</h2>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <h2 style={styles.title}>{displayName}</h2>
+              <span style={{ fontSize: '10px', color: '#888', marginTop: '2px' }}>{activeChat}</span>
+            </div>
           </div>
         </div>
 
@@ -176,7 +180,6 @@ const ChatDashboard = ({ onBack }) => {
           </p>
         </div>
 
-        {/* THE FIX: Replaced the static placeholder with the live, clickable database list! */}
         <div style={{ marginTop: '30px' }}>
           <h3 style={{ fontSize: '14px', color: '#666', borderBottom: '1px solid #2a2d35', paddingBottom: '10px' }}>Recent Chats</h3>
           
@@ -184,14 +187,19 @@ const ChatDashboard = ({ onBack }) => {
             <p style={{ textAlign: 'center', color: '#444', fontSize: '12px', marginTop: '20px' }}>No active conversations yet.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
-              {recentChats.map((contactEmail, index) => (
+              {recentChats.map((contact, index) => (
                 <div 
                   key={index} 
                   style={styles.recentChatCard} 
-                  onClick={() => setActiveChat(contactEmail)}
+                  // THE FIX: Email is still used as the secure database reference!
+                  onClick={() => setActiveChat(contact.email)}
                 >
-                  <div style={styles.avatarMini}>👤</div>
-                  <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{contactEmail.split('@')[0]}</span>
+                  <div style={{ ...styles.avatarMini, width: '40px', height: '40px', fontSize: '18px' }}>👤</div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {/* THE FIX: Username is displayed beautifully on top! */}
+                    <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#fff' }}>{contact.username}</span>
+                    <span style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{contact.email}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -218,7 +226,6 @@ const styles = {
   chatInputContainer: { display: 'flex', padding: '15px', backgroundColor: '#16181d', borderTop: '1px solid #2a2d35', gap: '10px' },
   chatInput: { flex: 1, padding: '15px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '24px', color: '#fff', fontSize: '14px' },
   sendBtn: { backgroundColor: '#00e5ff', color: '#000', border: 'none', width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  // NEW STYLE: Styling for the clickable Recent Chat cards
   recentChatCard: { display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', backgroundColor: '#16181d', borderRadius: '8px', cursor: 'pointer', border: '1px solid #2a2d35' }
 };
 

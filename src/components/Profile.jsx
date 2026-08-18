@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { authApi } from '../api/axiosConfig';
 
 const Profile = ({ onBack, onLogout }) => {
-  const currentUsername = localStorage.getItem('userEmail'); 
+  // We use the stored email as the current identifier
+  const currentEmail = localStorage.getItem('userEmail'); 
 
-  const [newUsername, setNewUsername] = useState(currentUsername || '');
+  const [newEmail, setNewEmail] = useState(currentEmail || '');
   const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState('');
 
@@ -14,13 +15,13 @@ const Profile = ({ onBack, onLogout }) => {
 
     try {
       await authApi.put('/update', {
-        currentUsername: currentUsername,
-        newUsername: newUsername,
+        currentUsername: currentEmail, // Backend checks this to find the user
+        newUsername: newEmail,         // Backend sees the '@' and updates the email
         newPassword: newPassword
       });
 
-      if (newUsername && newUsername !== currentUsername) {
-        localStorage.setItem('userEmail', newUsername);
+      if (newEmail && newEmail !== currentEmail) {
+        localStorage.setItem('userEmail', newEmail);
       }
 
       setMessage('Profile updated successfully!');
@@ -45,13 +46,14 @@ const Profile = ({ onBack, onLogout }) => {
         </div>
 
         <div style={styles.inputGroup}>
-          <label style={styles.label}> Update Email ID</label>
+          <label style={styles.label}>Update Email ID</label>
           <input 
-            type="text" 
+            type="email" // THE FIX: Forces the user to include an '@' symbol
             placeholder="Enter new email" 
-            value={newUsername}
-            onChange={(e) => setNewUsername(e.target.value)}
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
             style={styles.input} 
+            required // Prevents submitting an empty email string
           />
         </div>
 

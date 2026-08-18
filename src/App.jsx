@@ -4,7 +4,8 @@ import FamilyDashboard from './components/FamilyDashboard';
 import CreateGroup from './components/CreateGroup';
 import GroceryList from './components/GroceryList';
 import Profile from './components/Profile'; 
-import CreateUser from './components/CreateUser'; // NEW
+import CreateUser from './components/CreateUser'; 
+import ChatDashboard from './components/ChatDashboard'; // NEW CHAT
 import './App.css';
 
 function App() {
@@ -57,9 +58,14 @@ function App() {
                 onLogout={handleLogout}
               />
             )}
-            {/* NEW: Admin Create User Route */}
             {currentView === 'create-user' && (
               <CreateUser 
+                onBack={() => setCurrentView('home')} 
+              />
+            )}
+            {/* NEW: 1-on-1 Private Chat Route */}
+            {currentView === 'chat-dashboard' && (
+              <ChatDashboard 
                 onBack={() => setCurrentView('home')} 
               />
             )}

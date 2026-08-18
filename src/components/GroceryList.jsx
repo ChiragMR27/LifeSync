@@ -1,34 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { familyApi } from '../api/axiosConfig';
+import { familyApi, authApi } from '../api/axiosConfig';
 
 const GroceryList = ({ groupId, onBack }) => {
   const [activeTab, setActiveTab] = useState('shopping'); 
   const [newItem, setNewItem] = useState('');
   const [items, setItems] = useState([]);
   
-  // Member & Leader States
   const [membersCount, setMembersCount] = useState(1);
   const [membersList, setMembersList] = useState([]);
   const [leaderEmail, setLeaderEmail] = useState('');
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
 
-  // Quantity Modal States
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [itemToMove, setItemToMove] = useState(null);
   const [isDirectAdd, setIsDirectAdd] = useState(false);
   const [quantity, setQuantity] = useState(0.25);
   const [unit, setUnit] = useState('kg');
 
-  // THE FIX: Sanitize the logged-in email (lowercase and remove spaces)
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
   const fetchGroupDetails = async () => {
     try {
-      // THE FIX: We must pass the email parameter here because the backend now strictly requires it!
       const response = await familyApi.get(`/groups?email=${currentUserEmail}`);
-      
-      // We also force both IDs to Strings just in case React Router passed the ID as text
       const currentGroup = response.data.find(g => String(g.id) === String(groupId));
       
       if (currentGroup) {
@@ -70,8 +64,22 @@ const GroceryList = ({ groupId, onBack }) => {
       return;
     }
 
-    // THE FIX: Stop default items from being added when clicking "Add Default"
-    return;
+    // THE FIX: The database payload and save logic is fully restored
+    const payload = {
+      text: newItem,
+      isDefault: true, 
+      inCart: false, 
+      addedBy: currentUserEmail,
+      claimedBy: null
+    };
+
+    try {
+      await familyApi.post(`/groups/${groupId}/groceries`, payload);
+      setNewItem('');
+      fetchGroceries(); 
+    } catch (error) {
+      console.error("Error adding item:", error);
+    }
   };
 
   const updateItem = async (item, updates) => {
@@ -123,13 +131,33 @@ const GroceryList = ({ groupId, onBack }) => {
 
   const handleAddMemberSubmit = async (e) => {
     e.preventDefault();
+    const emailToCheck = newMemberEmail.toLowerCase().trim();
+
     try {
-      await familyApi.post(`/groups/${groupId}/members`, { email: newMemberEmail.toLowerCase().trim() });
-      setNewMemberEmail('');
-      fetchGroupDetails(); 
+      const checkResponse = await authApi.get(`/check-email?email=${emailToCheck}`);
+      const userExists = checkResponse.data; 
+
+      if (userExists) {
+        await familyApi.post(`/groups/${groupId}/members`, { email: emailToCheck });
+        setNewMemberEmail('');
+        fetchGroupDetails(); 
+        alert("Member added to group successfully!");
+      } else {
+        const shareData = {
+          title: 'Join me on LifeSync!',
+          text: `Hey! I'm using LifeSync to manage our family groceries. Sign up with the email ${emailToCheck} so I can add you to my group!`,
+          url: window.location.origin 
+        };
+
+        if (navigator.share) {
+          await navigator.share(shareData);
+        } else {
+          alert(`User not found! Copy this message and send it to them:\n\n${shareData.text}`);
+        }
+      }
     } catch (error) {
-      console.error("Error adding member:", error);
-      alert("Failed to add member.");
+      console.error("Error checking or adding member:", error);
+      alert("Something went wrong while verifying the user.");
     }
   };
 
@@ -163,7 +191,7 @@ const GroceryList = ({ groupId, onBack }) => {
 
         {activeTab === 'shopping' && (
           <>
-            <form style={styles.inputForm}>
+            <form onSubmit={(e) => e.preventDefault()} style={styles.inputForm}>
               <input type="text" placeholder="Add new grocery item..." value={newItem} onChange={(e) => setNewItem(e.target.value)} style={styles.input} />
               <div style={{ display: 'flex', gap: '5px' }}>
                 <button type="button" onClick={(e) => handleAddItem(e, true)} style={styles.addBtnDefault}>Add Default</button>
@@ -327,7 +355,6 @@ const styles = {
   actionBtn: { backgroundColor: '#333', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' },
   gotItBtn: { backgroundColor: '#ffc107', color: '#000', border: 'none', padding: '6px 15px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' },
   deleteBtn: { background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '14px' },
-  
   modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
   modalContent: { backgroundColor: '#16181d', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '350px', border: '1px solid #2a2d35' },
   closeBtn: { background: 'none', border: 'none', color: '#888', fontSize: '18px', cursor: 'pointer' },

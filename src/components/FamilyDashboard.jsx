@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { familyApi } from '../api/axiosConfig';
 
-const FamilyDashboard = ({ onNavigate, onLogout }) => {
+const FamilyDashboard = ({ onNavigate }) => {
   const [groups, setGroups] = useState([]);
 
   const fetchGroups = async () => {
@@ -22,7 +22,6 @@ const FamilyDashboard = ({ onNavigate, onLogout }) => {
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={{ fontSize: '20px', margin: 0 }}>LifeSync App</h1>
-        <button onClick={onLogout} style={styles.logoutBtn}>Logout</button>
       </div>
       
       <div style={styles.content}>
@@ -77,9 +76,9 @@ const FamilyDashboard = ({ onNavigate, onLogout }) => {
           <span style={styles.navIcon}>🏠</span>
           <span>Home</span>
         </div>
-        <div style={styles.navItem}>
-          <span style={styles.navIcon}>🔔</span>
-          <span>Alerts</span>
+        <div style={styles.navItem} onClick={() => onNavigate('chat-dashboard')}>
+          <span style={styles.navIcon}>💬</span>
+          <span>Chat</span>
         </div>
         <div style={styles.navItem} onClick={() => onNavigate('create-user')}>
           <span style={styles.navIcon}>➕</span>
@@ -97,7 +96,6 @@ const FamilyDashboard = ({ onNavigate, onLogout }) => {
 const styles = {
   container: { display: 'flex', flexDirection: 'column', height: '100%', color: '#fff', fontFamily: 'sans-serif' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #1a1c23' },
-  logoutBtn: { backgroundColor: 'transparent', color: '#ffc107', border: '1px solid #ffc107', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', cursor: 'pointer' },
   content: { padding: '20px', flex: 1, paddingBottom: '80px' },
   emptyStateContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', paddingTop: '60px' },
   iconCircle: { width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#1a1c23', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '20px' },

@@ -3,23 +3,20 @@ import { authApi } from '../api/axiosConfig';
 
 const Auth = ({ onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(false);
-  const [otpMode, setOtpMode] = useState(false); // Tracks if we should show the 4-digit OTP screen
+  const [otpMode, setOtpMode] = useState(false); 
   
-  // Form State
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
 
-  // OTP Array State [digit1, digit2, digit3, digit4]
   const [otpValues, setOtpValues] = useState(['', '', '', '']);
   const inputRefs = [useRef(), useRef(), useRef(), useRef()];
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // STEP 1: Send the OTP Email
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setMessage('');
@@ -30,16 +27,14 @@ const Auth = ({ onLoginSuccess }) => {
     }
     
     try {
-      // Hit the new backend endpoint to send the email
       await authApi.post('/send-otp', { username, email });
-      setOtpMode(true); // Flip the UI to the verification screen
+      setOtpMode(true); 
       setMessage(`OTP sent to ${email}`);
     } catch (error) {
       setMessage(error.response?.data || 'Failed to send OTP. Check email config.');
     }
   };
 
-  // STEP 2: Verify the OTP and Register
   const handleVerifyAndRegister = async (e) => {
     e.preventDefault();
     setMessage('');
@@ -51,56 +46,56 @@ const Auth = ({ onLoginSuccess }) => {
     }
 
     try {
-      // Send the final registration data along with the OTP
       await authApi.post('/register', { username, email, password, otp: otpCode });
       
       setMessage('Registration successful! You can now log in.');
       setTimeout(() => {
         setOtpMode(false);
-        setIsLogin(true); // Flip to login screen
-        setPassword(''); // Clear password for safety
+        setIsLogin(true); 
+        setPassword(''); 
       }, 2000);
     } catch (error) {
       setMessage(error.response?.data || 'Invalid or expired OTP!');
     }
   };
 
-  // STANDARD LOGIN
+  // THE FIX: STANDARD LOGIN
   const handleLogin = async (e) => {
     e.preventDefault();
     setMessage('');
     try {
       const response = await authApi.post('/login', { username, password });
+      
       const token = response.data.token;
+      const loggedInUser = response.data.username; // Catch the username from Spring Boot
+      
       localStorage.setItem('token', token); 
+      localStorage.setItem('userEmail', loggedInUser); // Save it so React remembers!
+      
       onLoginSuccess(); 
     } catch (error) {
       setMessage(error.response?.data || 'Invalid credentials.');
     }
   };
 
-  // Handle typing in the 4 OTP boxes (auto-moves to next box)
   const handleOtpChange = (index, value) => {
-    if (isNaN(value)) return; // Only allow numbers
+    if (isNaN(value)) return; 
     
     const newOtp = [...otpValues];
     newOtp[index] = value;
     setOtpValues(newOtp);
 
-    // Auto-focus next input if a number is typed
     if (value !== '' && index < 3) {
       inputRefs[index + 1].current.focus();
     }
   };
 
-  // Handle backspace in OTP boxes
   const handleOtpKeyDown = (index, e) => {
     if (e.key === 'Backspace' && otpValues[index] === '' && index > 0) {
       inputRefs[index - 1].current.focus();
     }
   };
 
-  // --- STYLES ---
   const styles = {
     container: {
       display: 'flex',
@@ -207,7 +202,7 @@ const Auth = ({ onLoginSuccess }) => {
       width: '60px',
       height: '60px',
       backgroundColor: '#1c1e32',
-      border: '2px solid #ffc107', // Yellow border matching Figma
+      border: '2px solid #ffc107', 
       borderRadius: '8px',
       color: '#ffffff',
       fontSize: '24px',
@@ -264,7 +259,6 @@ const Auth = ({ onLoginSuccess }) => {
           <p style={styles.subText}>HOUSEHOLD & LIFESTYLE</p>
         </div>
 
-        {/* --- OTP VERIFICATION UI --- */}
         {otpMode ? (
           <form onSubmit={handleVerifyAndRegister} style={{ display: 'flex', flexDirection: 'column' }}>
             <h2 style={{ textAlign: 'center', fontSize: '18px', marginBottom: '5px' }}>Verification Code</h2>
@@ -293,7 +287,6 @@ const Auth = ({ onLoginSuccess }) => {
             </p>
           </form>
         ) : (
-        /* --- STANDARD LOGIN/REGISTER UI --- */
           <form onSubmit={isLogin ? handleLogin : handleSendOtp} style={{ display: 'flex', flexDirection: 'column' }}>
             
             {!isLogin && (

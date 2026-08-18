@@ -6,10 +6,22 @@ const ChatDashboard = ({ onBack }) => {
   const [activeChat, setActiveChat] = useState(null);
   const [messageInput, setMessageInput] = useState('');
   const [messages, setMessages] = useState([]);
+  
+  // THE FIX: Added state to hold the list of incoming conversations
+  const [recentChats, setRecentChats] = useState([]);
 
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
-  // THE FIX: Fetch chat history from the database
+  // Fetch the list of people who have messaged you
+  const fetchRecentChats = async () => {
+    try {
+      const response = await authApi.get(`/chat/recent?email=${currentUserEmail}`);
+      setRecentChats(response.data);
+    } catch (error) {
+      console.error("Error fetching recent chats:", error);
+    }
+  };
+
   const fetchMessages = async () => {
     if (!activeChat) return;
     try {
@@ -20,7 +32,16 @@ const ChatDashboard = ({ onBack }) => {
     }
   };
 
-  // THE FIX: Auto-refresh the chat every 3 seconds to feel like a live app!
+  // Check for new incoming chats on the main screen every 5 seconds
+  useEffect(() => {
+    if (!activeChat) {
+      fetchRecentChats();
+      const interval = setInterval(fetchRecentChats, 5000); 
+      return () => clearInterval(interval);
+    }
+  }, [activeChat]);
+
+  // Check for new messages inside an active chat every 3 seconds
   useEffect(() => {
     if (activeChat) {
       fetchMessages();
@@ -78,7 +99,6 @@ const ChatDashboard = ({ onBack }) => {
     };
 
     try {
-      // THE FIX: Save the message permanently to the Java backend!
       await authApi.post('/chat/send', newMsg);
       setMessageInput('');
       fetchMessages(); 
@@ -156,9 +176,26 @@ const ChatDashboard = ({ onBack }) => {
           </p>
         </div>
 
+        {/* THE FIX: Replaced the static placeholder with the live, clickable database list! */}
         <div style={{ marginTop: '30px' }}>
           <h3 style={{ fontSize: '14px', color: '#666', borderBottom: '1px solid #2a2d35', paddingBottom: '10px' }}>Recent Chats</h3>
-          <p style={{ textAlign: 'center', color: '#444', fontSize: '12px', marginTop: '20px' }}>No active conversations yet.</p>
+          
+          {recentChats.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#444', fontSize: '12px', marginTop: '20px' }}>No active conversations yet.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
+              {recentChats.map((contactEmail, index) => (
+                <div 
+                  key={index} 
+                  style={styles.recentChatCard} 
+                  onClick={() => setActiveChat(contactEmail)}
+                >
+                  <div style={styles.avatarMini}>👤</div>
+                  <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{contactEmail.split('@')[0]}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -180,7 +217,9 @@ const styles = {
   messageBubble: { maxWidth: '75%', padding: '10px 15px', borderRadius: '12px', display: 'flex', flexDirection: 'column' },
   chatInputContainer: { display: 'flex', padding: '15px', backgroundColor: '#16181d', borderTop: '1px solid #2a2d35', gap: '10px' },
   chatInput: { flex: 1, padding: '15px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '24px', color: '#fff', fontSize: '14px' },
-  sendBtn: { backgroundColor: '#00e5ff', color: '#000', border: 'none', width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' }
+  sendBtn: { backgroundColor: '#00e5ff', color: '#000', border: 'none', width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  // NEW STYLE: Styling for the clickable Recent Chat cards
+  recentChatCard: { display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', backgroundColor: '#16181d', borderRadius: '8px', cursor: 'pointer', border: '1px solid #2a2d35' }
 };
 
 export default ChatDashboard;

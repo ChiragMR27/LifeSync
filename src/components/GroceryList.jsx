@@ -25,12 +25,16 @@ const GroceryList = ({ groupId, onBack }) => {
 
   const fetchGroupDetails = async () => {
     try {
-      const response = await familyApi.get(`/groups`);
-      const currentGroup = response.data.find(g => g.id === groupId);
+      // THE FIX: We must pass the email parameter here because the backend now strictly requires it!
+      const response = await familyApi.get(`/groups?email=${currentUserEmail}`);
+      
+      // We also force both IDs to Strings just in case React Router passed the ID as text
+      const currentGroup = response.data.find(g => String(g.id) === String(groupId));
+      
       if (currentGroup) {
         setMembersCount(currentGroup.membersCount);
-        // THE FIX: Sanitize the database leader email and member list
         setLeaderEmail(String(currentGroup.leaderEmail || '').toLowerCase().trim());
+        
         const cleanMembers = (currentGroup.members || []).map(m => String(m || '').toLowerCase().trim());
         setMembersList(cleanMembers);
       }

@@ -6,7 +6,8 @@ const FamilyDashboard = ({ onNavigate, onLogout }) => {
 
   const fetchGroups = async () => {
     try {
-      const response = await familyApi.get('/groups');
+      const userEmail = localStorage.getItem('userEmail');
+      const response = await familyApi.get(`/groups?email=${userEmail}`);
       setGroups(response.data);
     } catch (error) {
       console.error("Error fetching groups from database:", error);
@@ -80,7 +81,6 @@ const FamilyDashboard = ({ onNavigate, onLogout }) => {
           <span style={styles.navIcon}>🔔</span>
           <span>Alerts</span>
         </div>
-        {/* NEW: Admin Create User Button */}
         <div style={styles.navItem} onClick={() => onNavigate('create-user')}>
           <span style={styles.navIcon}>➕</span>
           <span>Add User</span>

@@ -41,7 +41,7 @@ const GroceryList = ({ groupId, onBack }) => {
     } catch (error) {
       console.error("Error fetching group details:", error);
     }
-  };
+  };  
 
   const fetchGroceries = async () => {
     try {
@@ -70,21 +70,8 @@ const GroceryList = ({ groupId, onBack }) => {
       return;
     }
 
-    const payload = {
-      text: newItem,
-      isDefault: true, 
-      inCart: false, 
-      addedBy: currentUserEmail,
-      claimedBy: null
-    };
-
-    try {
-      await familyApi.post(`/groups/${groupId}/groceries`, payload);
-      setNewItem('');
-      fetchGroceries(); 
-    } catch (error) {
-      console.error("Error adding item:", error);
-    }
+    // THE FIX: Stop default items from being added when clicking "Add Default"
+    return;
   };
 
   const updateItem = async (item, updates) => {
@@ -186,7 +173,6 @@ const GroceryList = ({ groupId, onBack }) => {
 
             <div style={styles.list}>
               {items.filter(item => item.isDefault).map((item) => {
-                // THE FIX: Check if you are the leader OR if you added the item!
                 const itemAddedBy = String(item.addedBy || '').toLowerCase().trim();
                 const canDelete = currentUserEmail === leaderEmail || currentUserEmail === itemAddedBy;
 

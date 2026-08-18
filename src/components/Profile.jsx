@@ -45,10 +45,10 @@ const Profile = ({ onBack, onLogout }) => {
         </div>
 
         <div style={styles.inputGroup}>
-          <label style={styles.label}>Update Username / Email ID</label>
+          <label style={styles.label}> Update Email ID</label>
           <input 
             type="text" 
-            placeholder="Enter new username or email" 
+            placeholder="Enter new email" 
             value={newUsername}
             onChange={(e) => setNewUsername(e.target.value)}
             style={styles.input} 

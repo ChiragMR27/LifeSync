@@ -13,14 +13,15 @@ const GroceryList = ({ groupId, onBack }) => {
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
 
-  // NEW: Quantity Modal States
+  // Quantity Modal States
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [itemToMove, setItemToMove] = useState(null);
-  const [isDirectAdd, setIsDirectAdd] = useState(false); // Tracks if adding straight to cart vs moving a default item
+  const [isDirectAdd, setIsDirectAdd] = useState(false);
   const [quantity, setQuantity] = useState(0.25);
   const [unit, setUnit] = useState('kg');
 
-  const currentUserEmail = localStorage.getItem('userEmail');
+  // THE FIX: Sanitize the logged-in email (lowercase and remove spaces)
+  const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
   const fetchGroupDetails = async () => {
     try {
@@ -28,8 +29,10 @@ const GroceryList = ({ groupId, onBack }) => {
       const currentGroup = response.data.find(g => g.id === groupId);
       if (currentGroup) {
         setMembersCount(currentGroup.membersCount);
-        setLeaderEmail(currentGroup.leaderEmail);
-        setMembersList(currentGroup.members || []);
+        // THE FIX: Sanitize the database leader email and member list
+        setLeaderEmail(String(currentGroup.leaderEmail || '').toLowerCase().trim());
+        const cleanMembers = (currentGroup.members || []).map(m => String(m || '').toLowerCase().trim());
+        setMembersList(cleanMembers);
       }
     } catch (error) {
       console.error("Error fetching group details:", error);
@@ -56,7 +59,6 @@ const GroceryList = ({ groupId, onBack }) => {
     e.preventDefault();
     if (!newItem) return;
 
-    // THE FIX: If adding directly to cart, trigger the quantity modal first
     if (!isDefaultTarget) {
       setItemToMove({ text: newItem, isDefault: false, inCart: true, addedBy: currentUserEmail, claimedBy: null });
       setIsDirectAdd(true);
@@ -64,7 +66,6 @@ const GroceryList = ({ groupId, onBack }) => {
       return;
     }
 
-    // Otherwise, add as a default list item instantly
     const payload = {
       text: newItem,
       isDefault: true, 
@@ -91,16 +92,13 @@ const GroceryList = ({ groupId, onBack }) => {
     }
   };
 
-  // NEW: Executes the move/add AFTER the user confirms the quantity
   const confirmQuantityAndMove = async () => {
     try {
       if (isDirectAdd) {
-        // Saving a brand new item directly to the cart
         const payload = { ...itemToMove, quantity: parseFloat(quantity), unit };
         await familyApi.post(`/groups/${groupId}/groceries`, payload);
         setNewItem('');
       } else {
-        // Updating an existing default item into the cart
         await familyApi.put(`/groups/${groupId}/groceries/${itemToMove.id}`, { 
           ...itemToMove, 
           inCart: true, 
@@ -110,7 +108,6 @@ const GroceryList = ({ groupId, onBack }) => {
         });
       }
       
-      // Close modal and reset defaults
       setShowQuantityModal(false);
       setQuantity(0.25);
       setUnit('kg');
@@ -123,7 +120,6 @@ const GroceryList = ({ groupId, onBack }) => {
   const handleDeleteOrCheckout = async (item) => {
     try {
       if (item.isDefault) {
-        // Just remove it from the cart and clear quantities
         await updateItem(item, { inCart: false, claimedBy: null, quantity: null, unit: null });
       } else {
         await familyApi.delete(`/groups/${groupId}/groceries/${item.id}`);
@@ -137,7 +133,7 @@ const GroceryList = ({ groupId, onBack }) => {
   const handleAddMemberSubmit = async (e) => {
     e.preventDefault();
     try {
-      await familyApi.post(`/groups/${groupId}/members`, { email: newMemberEmail });
+      await familyApi.post(`/groups/${groupId}/members`, { email: newMemberEmail.toLowerCase().trim() });
       setNewMemberEmail('');
       fetchGroupDetails(); 
     } catch (error) {
@@ -185,22 +181,28 @@ const GroceryList = ({ groupId, onBack }) => {
             </form>
 
             <div style={styles.list}>
-              {items.filter(item => item.isDefault).map((item) => (
-                <div key={item.id} style={styles.listItem}>
-                  <span>{item.text}</span>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    {!item.inCart ? (
-                      // THE FIX: Trigger Modal instead of updating instantly
-                      <button onClick={() => { setItemToMove(item); setIsDirectAdd(false); setShowQuantityModal(true); }} style={styles.actionBtn}>Move to Cart</button>
-                    ) : (
-                      <span style={{ color: '#00e5ff', fontSize: '12px' }}>In Cart ✓</span>
-                    )}
-                    {currentUserEmail === leaderEmail && (
-                      <button onClick={() => familyApi.delete(`/groups/${groupId}/groceries/${item.id}`).then(fetchGroceries)} style={styles.deleteBtn}>🗑️</button>
-                    )}
+              {items.filter(item => item.isDefault).map((item) => {
+                // THE FIX: Check if you are the leader OR if you added the item!
+                const itemAddedBy = String(item.addedBy || '').toLowerCase().trim();
+                const canDelete = currentUserEmail === leaderEmail || currentUserEmail === itemAddedBy;
+
+                return (
+                  <div key={item.id} style={styles.listItem}>
+                    <span>{item.text}</span>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      {!item.inCart ? (
+                        <button onClick={() => { setItemToMove(item); setIsDirectAdd(false); setShowQuantityModal(true); }} style={styles.actionBtn}>Move to Cart</button>
+                      ) : (
+                        <span style={{ color: '#00e5ff', fontSize: '12px' }}>In Cart ✓</span>
+                      )}
+                      
+                      {canDelete && (
+                        <button onClick={() => familyApi.delete(`/groups/${groupId}/groceries/${item.id}`).then(fetchGroceries)} style={styles.deleteBtn}>🗑️</button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
@@ -211,13 +213,12 @@ const GroceryList = ({ groupId, onBack }) => {
               <div key={item.id} style={styles.listItem}>
                 <span>
                   {item.text} 
-                  {/* NEW: Display the quantity beautifully in the cart */}
                   {item.quantity && <strong style={{ color: '#00e5ff', marginLeft: '8px' }}>({item.quantity} {item.unit})</strong>}
                 </span>
                 {item.claimedBy ? (
-                  <span style={{ fontSize: '12px', color: '#ffc107' }}>Claimed by {item.claimedBy.split('@')[0]}</span>
+                  <span style={{ fontSize: '12px', color: '#ffc107' }}>Claimed by {(item.claimedBy || '').split('@')[0]}</span>
                 ) : (
-                  item.addedBy !== currentUserEmail ? (
+                  String(item.addedBy || '').toLowerCase().trim() !== currentUserEmail ? (
                     <button onClick={() => updateItem(item, { claimedBy: currentUserEmail })} style={styles.gotItBtn}>Got It!</button>
                   ) : (
                     <span style={{ fontSize: '12px', color: '#888' }}>Waiting for claim...</span>
@@ -231,7 +232,7 @@ const GroceryList = ({ groupId, onBack }) => {
 
         {activeTab === 'checkout' && (
           <div style={styles.list}>
-            {items.filter(item => item.inCart && item.claimedBy === currentUserEmail).map((item) => (
+            {items.filter(item => item.inCart && String(item.claimedBy || '').toLowerCase().trim() === currentUserEmail).map((item) => (
               <div key={item.id} style={styles.listItem}>
                 <span style={{ textDecoration: 'line-through', color: '#888' }}>
                   {item.text} {item.quantity && `(${item.quantity} ${item.unit})`}
@@ -239,14 +240,13 @@ const GroceryList = ({ groupId, onBack }) => {
                 <button onClick={() => handleDeleteOrCheckout(item)} style={styles.deleteBtn}>Delete Cart Item</button>
               </div>
             ))}
-            {items.filter(item => item.inCart && item.claimedBy === currentUserEmail).length === 0 && (
+            {items.filter(item => item.inCart && String(item.claimedBy || '').toLowerCase().trim() === currentUserEmail).length === 0 && (
               <p style={{ color: '#888', textAlign: 'center' }}>You haven't claimed any items to checkout yet.</p>
             )}
           </div>
         )}
       </div>
 
-      {/* NEW: The Quantity & Unit Selection Modal */}
       {showQuantityModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
@@ -280,7 +280,6 @@ const GroceryList = ({ groupId, onBack }) => {
         </div>
       )}
 
-      {/* Existing Members Modal */}
       {showAddMember && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>

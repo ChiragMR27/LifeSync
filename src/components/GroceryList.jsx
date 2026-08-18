@@ -13,6 +13,13 @@ const GroceryList = ({ groupId, onBack }) => {
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
 
+  // NEW: Quantity Modal States
+  const [showQuantityModal, setShowQuantityModal] = useState(false);
+  const [itemToMove, setItemToMove] = useState(null);
+  const [isDirectAdd, setIsDirectAdd] = useState(false); // Tracks if adding straight to cart vs moving a default item
+  const [quantity, setQuantity] = useState(0.25);
+  const [unit, setUnit] = useState('kg');
+
   const currentUserEmail = localStorage.getItem('userEmail');
 
   const fetchGroupDetails = async () => {
@@ -49,10 +56,19 @@ const GroceryList = ({ groupId, onBack }) => {
     e.preventDefault();
     if (!newItem) return;
 
+    // THE FIX: If adding directly to cart, trigger the quantity modal first
+    if (!isDefaultTarget) {
+      setItemToMove({ text: newItem, isDefault: false, inCart: true, addedBy: currentUserEmail, claimedBy: null });
+      setIsDirectAdd(true);
+      setShowQuantityModal(true);
+      return;
+    }
+
+    // Otherwise, add as a default list item instantly
     const payload = {
       text: newItem,
-      isDefault: isDefaultTarget, 
-      inCart: !isDefaultTarget, 
+      isDefault: true, 
+      inCart: false, 
       addedBy: currentUserEmail,
       claimedBy: null
     };
@@ -75,10 +91,40 @@ const GroceryList = ({ groupId, onBack }) => {
     }
   };
 
+  // NEW: Executes the move/add AFTER the user confirms the quantity
+  const confirmQuantityAndMove = async () => {
+    try {
+      if (isDirectAdd) {
+        // Saving a brand new item directly to the cart
+        const payload = { ...itemToMove, quantity: parseFloat(quantity), unit };
+        await familyApi.post(`/groups/${groupId}/groceries`, payload);
+        setNewItem('');
+      } else {
+        // Updating an existing default item into the cart
+        await familyApi.put(`/groups/${groupId}/groceries/${itemToMove.id}`, { 
+          ...itemToMove, 
+          inCart: true, 
+          addedBy: currentUserEmail,
+          quantity: parseFloat(quantity),
+          unit
+        });
+      }
+      
+      // Close modal and reset defaults
+      setShowQuantityModal(false);
+      setQuantity(0.25);
+      setUnit('kg');
+      fetchGroceries();
+    } catch (error) {
+      console.error("Error moving item to cart:", error);
+    }
+  };
+
   const handleDeleteOrCheckout = async (item) => {
     try {
       if (item.isDefault) {
-        await updateItem(item, { inCart: false, claimedBy: null });
+        // Just remove it from the cart and clear quantities
+        await updateItem(item, { inCart: false, claimedBy: null, quantity: null, unit: null });
       } else {
         await familyApi.delete(`/groups/${groupId}/groceries/${item.id}`);
         fetchGroceries();
@@ -93,7 +139,7 @@ const GroceryList = ({ groupId, onBack }) => {
     try {
       await familyApi.post(`/groups/${groupId}/members`, { email: newMemberEmail });
       setNewMemberEmail('');
-      fetchGroupDetails(); // Refresh members list and count
+      fetchGroupDetails(); 
     } catch (error) {
       console.error("Error adding member:", error);
       alert("Failed to add member.");
@@ -103,7 +149,7 @@ const GroceryList = ({ groupId, onBack }) => {
   const handleMakeLeader = async (email) => {
     try {
       await familyApi.put(`/groups/${groupId}/leader`, { newLeaderEmail: email });
-      fetchGroupDetails(); // Refresh so UI updates to new leader
+      fetchGroupDetails(); 
     } catch (error) {
       console.error("Error transferring leadership:", error);
     }
@@ -124,7 +170,6 @@ const GroceryList = ({ groupId, onBack }) => {
 
       <div style={styles.content}>
         <div style={styles.actionRow}>
-          {/* Changed button text to indicate it opens a management modal */}
           <button onClick={() => setShowAddMember(true)} style={styles.addMemberBtn}>Manage Members</button>
           <span style={styles.memberCount}>{membersCount} members</span>
         </div>
@@ -145,7 +190,8 @@ const GroceryList = ({ groupId, onBack }) => {
                   <span>{item.text}</span>
                   <div style={{ display: 'flex', gap: '10px' }}>
                     {!item.inCart ? (
-                      <button onClick={() => updateItem(item, { inCart: true, addedBy: currentUserEmail })} style={styles.actionBtn}>Move to Cart</button>
+                      // THE FIX: Trigger Modal instead of updating instantly
+                      <button onClick={() => { setItemToMove(item); setIsDirectAdd(false); setShowQuantityModal(true); }} style={styles.actionBtn}>Move to Cart</button>
                     ) : (
                       <span style={{ color: '#00e5ff', fontSize: '12px' }}>In Cart ✓</span>
                     )}
@@ -163,7 +209,11 @@ const GroceryList = ({ groupId, onBack }) => {
           <div style={styles.list}>
             {items.filter(item => item.inCart).map((item) => (
               <div key={item.id} style={styles.listItem}>
-                <span>{item.text}</span>
+                <span>
+                  {item.text} 
+                  {/* NEW: Display the quantity beautifully in the cart */}
+                  {item.quantity && <strong style={{ color: '#00e5ff', marginLeft: '8px' }}>({item.quantity} {item.unit})</strong>}
+                </span>
                 {item.claimedBy ? (
                   <span style={{ fontSize: '12px', color: '#ffc107' }}>Claimed by {item.claimedBy.split('@')[0]}</span>
                 ) : (
@@ -183,7 +233,9 @@ const GroceryList = ({ groupId, onBack }) => {
           <div style={styles.list}>
             {items.filter(item => item.inCart && item.claimedBy === currentUserEmail).map((item) => (
               <div key={item.id} style={styles.listItem}>
-                <span style={{ textDecoration: 'line-through', color: '#888' }}>{item.text}</span>
+                <span style={{ textDecoration: 'line-through', color: '#888' }}>
+                  {item.text} {item.quantity && `(${item.quantity} ${item.unit})`}
+                </span>
                 <button onClick={() => handleDeleteOrCheckout(item)} style={styles.deleteBtn}>Delete Cart Item</button>
               </div>
             ))}
@@ -194,6 +246,41 @@ const GroceryList = ({ groupId, onBack }) => {
         )}
       </div>
 
+      {/* NEW: The Quantity & Unit Selection Modal */}
+      {showQuantityModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#00e5ff' }}>Set Quantity</h3>
+            <p style={{ fontSize: '14px', marginBottom: '15px', color: '#ccc' }}>How much <strong>{itemToMove?.text}</strong> is needed?</p>
+            
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '25px' }}>
+              <input 
+                type="number" 
+                step="0.25" 
+                min="0.25"
+                value={quantity} 
+                onChange={(e) => setQuantity(e.target.value)} 
+                style={styles.modalInput} 
+              />
+              <select value={unit} onChange={(e) => setUnit(e.target.value)} style={styles.modalInput}>
+                <option value="kg">kg</option>
+                <option value="g">grams</option>
+                <option value="L">Liters</option>
+                <option value="ml">ml</option>
+                <option value="pcs">Pieces</option>
+                <option value="pkts">Packets</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setShowQuantityModal(false)} style={{ ...styles.modalAddBtn, backgroundColor: '#333', color: '#fff', flex: 1 }}>Cancel</button>
+              <button onClick={confirmQuantityAndMove} style={{ ...styles.modalAddBtn, flex: 1 }}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Existing Members Modal */}
       {showAddMember && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
@@ -202,7 +289,6 @@ const GroceryList = ({ groupId, onBack }) => {
               <button onClick={() => setShowAddMember(false)} style={styles.closeBtn}>✕</button>
             </div>
             
-            {/* Display list of current members and leader tools */}
             <div style={styles.memberListContainer}>
               {membersList.map(email => (
                 <div key={email} style={styles.memberRow}>
@@ -211,7 +297,6 @@ const GroceryList = ({ groupId, onBack }) => {
                     {email === leaderEmail && <span style={{ marginLeft: '8px', fontSize: '10px', color: '#00e5ff', border: '1px solid #00e5ff', padding: '2px 6px', borderRadius: '10px' }}>Leader</span>}
                   </div>
                   
-                  {/* Show "Make Leader" button ONLY if you are the leader, and it's not you */}
                   {currentUserEmail === leaderEmail && email !== leaderEmail && (
                     <button onClick={() => handleMakeLeader(email)} style={styles.makeLeaderBtn}>Make Leader</button>
                   )}
@@ -254,7 +339,6 @@ const styles = {
   gotItBtn: { backgroundColor: '#ffc107', color: '#000', border: 'none', padding: '6px 15px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' },
   deleteBtn: { background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '14px' },
   
-  // Updated Modal Styles
   modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
   modalContent: { backgroundColor: '#16181d', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '350px', border: '1px solid #2a2d35' },
   closeBtn: { background: 'none', border: 'none', color: '#888', fontSize: '18px', cursor: 'pointer' },
@@ -262,7 +346,7 @@ const styles = {
   memberRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0a0a0c', padding: '10px', borderRadius: '6px' },
   makeLeaderBtn: { backgroundColor: 'transparent', border: '1px solid #ffc107', color: '#ffc107', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
   modalInput: { flex: 1, padding: '10px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' },
-  modalAddBtn: { backgroundColor: '#00e5ff', color: '#000', border: 'none', padding: '0 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }
+  modalAddBtn: { backgroundColor: '#00e5ff', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }
 };
 
 export default GroceryList;

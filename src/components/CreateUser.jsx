@@ -5,7 +5,6 @@ const CreateUser = ({ onBack }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('USER');
   const [message, setMessage] = useState('');
 
   const handleRegister = async (e) => {
@@ -16,8 +15,7 @@ const CreateUser = ({ onBack }) => {
       await authApi.post('/direct-register', {
         username,
         email,
-        password,
-        role
+        password
       });
 
       setMessage('User created successfully!');
@@ -72,18 +70,6 @@ const CreateUser = ({ onBack }) => {
             style={styles.input} 
             required
           />
-        </div>
-
-        <div style={styles.inputGroup}>
-          <label style={styles.label}>Role</label>
-          <select 
-            value={role} 
-            onChange={(e) => setRole(e.target.value)} 
-            style={styles.input}
-          >
-            <option value="USER">User</option>
-            <option value="ADMIN">Admin</option>
-          </select>
         </div>
 
         <button type="submit" style={styles.saveBtn}>Create User</button>

@@ -10,7 +10,7 @@ const GroupChat = ({ groupId, onBack }) => {
   const [newMemberEmail, setNewMemberEmail] = useState('');
   
   const [memberUsernames, setMemberUsernames] = useState({});
-  const [isLoading, setIsLoading] = useState(true); // THE FIX: Initializing load state
+  const [isLoading, setIsLoading] = useState(true); 
 
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
@@ -51,7 +51,6 @@ const GroupChat = ({ groupId, onBack }) => {
     }
   };
 
-  // THE FIX: Bundle initial fetches so we disable the loading screen when they finish!
   useEffect(() => {
     let interval;
     const loadData = async () => {
@@ -186,10 +185,15 @@ const GroupChat = ({ groupId, onBack }) => {
 
               return (
                 <div key={msg.id} style={{ ...styles.messageBubbleContainer, justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                  <div style={{ ...styles.messageBubble, backgroundColor: isMe ? '#ff4d4d' : '#2a2d35', color: isMe ? '#000' : '#fff' }}>
-                    {!isMe && <span style={{ fontSize: '10px', color: '#ffc107', fontWeight: 'bold', marginBottom: '2px' }}>{senderName}</span>}
-                    <p style={{ margin: 0, fontSize: '14px' }}>{msg.text}</p>
-                    <span style={{ fontSize: '9px', opacity: 0.6, alignSelf: 'flex-end', marginTop: '4px' }}>{msg.timestamp}</span>
+                  {/* THE FIX: Changed bubble color to Pink */}
+                  <div style={{ ...styles.messageBubble, backgroundColor: isMe ? '#ff66b2' : '#2a2d35', color: isMe ? '#000' : '#fff' }}>
+                    {!isMe && <span style={{ fontSize: '10px', color: '#ffc107', fontWeight: 'bold', marginBottom: '4px' }}>{senderName}</span>}
+                    
+                    {/* THE FIX: WhatsApp style alignment! The text and time sit in a row, with the time pushed to the far right. */}
+                    <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '14px', wordBreak: 'break-word', lineHeight: '1.4' }}>{msg.text}</span>
+                      <span style={{ fontSize: '9px', opacity: 0.6, marginLeft: 'auto', paddingTop: '5px', whiteSpace: 'nowrap' }}>{msg.timestamp}</span>
+                    </div>
                   </div>
                 </div>
               );
@@ -209,7 +213,6 @@ const GroupChat = ({ groupId, onBack }) => {
         <button type="submit" style={styles.sendBtn}>➤</button>
       </form>
 
-      {/* Modals remain exactly the same */}
       {showMembersModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
@@ -266,6 +269,7 @@ const GroupChat = ({ groupId, onBack }) => {
   );
 };
 
+// THE FIX: Changed all #ff4d4d borders and backgrounds to #ff66b2 (Pink)
 const styles = {
   container: { backgroundColor: '#0a0a0c', minHeight: '100vh', display: 'flex', flexDirection: 'column', color: '#fff', fontFamily: 'sans-serif', position: 'relative' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderBottom: '1px solid #1a1c23', backgroundColor: '#16181d' },
@@ -276,22 +280,21 @@ const styles = {
   messageBubble: { maxWidth: '75%', padding: '10px 15px', borderRadius: '12px', display: 'flex', flexDirection: 'column' },
   chatInputContainer: { display: 'flex', padding: '15px', backgroundColor: '#16181d', borderTop: '1px solid #2a2d35', gap: '10px' },
   chatInput: { flex: 1, padding: '15px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '24px', color: '#fff', fontSize: '14px' },
-  sendBtn: { backgroundColor: '#ff4d4d', color: '#000', border: 'none', width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  sendBtn: { backgroundColor: '#ff66b2', color: '#000', border: 'none', width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' },
   
   modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
   modalContent: { backgroundColor: '#16181d', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '350px', border: '1px solid #2a2d35' },
   closeBtn: { background: 'none', border: 'none', color: '#888', fontSize: '18px', cursor: 'pointer' },
   memberListContainer: { maxHeight: '150px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' },
   memberRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0a0a0c', padding: '10px', borderRadius: '6px' },
-  leaderBadge: { fontSize: '10px', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '2px 6px', borderRadius: '10px' },
+  leaderBadge: { fontSize: '10px', color: '#ff66b2', border: '1px solid #ff66b2', padding: '2px 6px', borderRadius: '10px' },
   makeLeaderBtn: { backgroundColor: 'transparent', border: '1px solid #ffc107', color: '#ffc107', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
   kickBtn: { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
   modalInput: { flex: 1, padding: '10px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' },
-  modalAddBtn: { backgroundColor: '#ff4d4d', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
+  modalAddBtn: { backgroundColor: '#ff66b2', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
   
-  // THE FIX: New styles for the loading spinner
   loadingContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '80px', gap: '15px' },
-  spinner: { width: '40px', height: '40px', border: '4px solid rgba(255, 77, 77, 0.1)', borderTop: '4px solid #ff4d4d', borderRadius: '50%', animation: 'spin 1s linear infinite' },
+  spinner: { width: '40px', height: '40px', border: '4px solid rgba(255, 102, 178, 0.1)', borderTop: '4px solid #ff66b2', borderRadius: '50%', animation: 'spin 1s linear infinite' },
   loadingText: { color: '#888', fontSize: '14px' }
 };
 

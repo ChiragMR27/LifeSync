@@ -8,16 +8,21 @@ const ChatDashboard = ({ onBack }) => {
   const [messages, setMessages] = useState([]);
   
   const [recentChats, setRecentChats] = useState([]);
+  
+  // THE FIX: Added loading states for both views
+  const [isRecentLoading, setIsRecentLoading] = useState(true);
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
   const fetchRecentChats = async () => {
     try {
       const response = await authApi.get(`/chat/recent?email=${currentUserEmail}`);
-      // Response now contains the email and the username from the Java backend
       setRecentChats(response.data);
     } catch (error) {
       console.error("Error fetching recent chats:", error);
+    } finally {
+      setIsRecentLoading(false);
     }
   };
 
@@ -33,6 +38,7 @@ const ChatDashboard = ({ onBack }) => {
 
   useEffect(() => {
     if (!activeChat) {
+      setIsRecentLoading(true);
       fetchRecentChats();
       const interval = setInterval(fetchRecentChats, 5000); 
       return () => clearInterval(interval);
@@ -41,7 +47,8 @@ const ChatDashboard = ({ onBack }) => {
 
   useEffect(() => {
     if (activeChat) {
-      fetchMessages();
+      setIsChatLoading(true);
+      fetchMessages().then(() => setIsChatLoading(false));
       const interval = setInterval(fetchMessages, 3000); 
       return () => clearInterval(interval);
     }
@@ -105,12 +112,13 @@ const ChatDashboard = ({ onBack }) => {
   };
 
   if (activeChat) {
-    // THE FIX: Look up the username to display it cleanly at the top of the active chat
     const activeContact = recentChats.find(c => c.email === activeChat);
     const displayName = activeContact ? activeContact.username : activeChat.split('@')[0];
 
     return (
       <div style={styles.container}>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        
         <div style={styles.header}>
           <button onClick={() => setActiveChat(null)} style={styles.backBtn}>←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -123,21 +131,34 @@ const ChatDashboard = ({ onBack }) => {
         </div>
 
         <div style={styles.chatWindow}>
-          <p style={{ textAlign: 'center', fontSize: '10px', color: '#666', margin: '10px 0' }}>
-            Private Chat established. End-to-end simulated.
-          </p>
-          
-          {messages.map((msg) => {
-            const isMe = msg.senderEmail === currentUserEmail;
-            return (
-              <div key={msg.id} style={{ ...styles.messageBubbleContainer, justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                <div style={{ ...styles.messageBubble, backgroundColor: isMe ? '#00e5ff' : '#2a2d35', color: isMe ? '#000' : '#fff' }}>
-                  <p style={{ margin: 0, fontSize: '14px' }}>{msg.text}</p>
-                  <span style={{ fontSize: '9px', opacity: 0.6, alignSelf: 'flex-end', marginTop: '4px' }}>{msg.timestamp}</span>
-                </div>
-              </div>
-            );
-          })}
+          {isChatLoading ? (
+            <div style={styles.loadingContainer}>
+              <div style={styles.spinner} />
+              <span style={styles.loadingText}>Loading messages...</span>
+            </div>
+          ) : (
+            <>
+              <p style={{ textAlign: 'center', fontSize: '10px', color: '#666', margin: '10px 0' }}>
+                Private Chat established. End-to-end simulated.
+              </p>
+              
+              {messages.map((msg) => {
+                const isMe = msg.senderEmail === currentUserEmail;
+                return (
+                  <div key={msg.id} style={{ ...styles.messageBubbleContainer, justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                    {/* THE FIX: Updated to Pink theme */}
+                    <div style={{ ...styles.messageBubble, backgroundColor: isMe ? '#ff66b2' : '#2a2d35', color: isMe ? '#000' : '#fff' }}>
+                      {/* THE FIX: WhatsApp style alignment! */}
+                      <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '8px' }}>
+                        <span style={{ fontSize: '14px', wordBreak: 'break-word', lineHeight: '1.4' }}>{msg.text}</span>
+                        <span style={{ fontSize: '9px', opacity: 0.6, marginLeft: 'auto', paddingTop: '5px', whiteSpace: 'nowrap' }}>{msg.timestamp}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
 
         <form onSubmit={handleSendMessage} style={styles.chatInputContainer}>
@@ -156,6 +177,8 @@ const ChatDashboard = ({ onBack }) => {
 
   return (
     <div style={styles.container}>
+      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      
       <div style={styles.header}>
         <button onClick={onBack} style={styles.backBtn}>←</button>
         <h2 style={styles.title}>Direct Messages</h2>
@@ -163,7 +186,6 @@ const ChatDashboard = ({ onBack }) => {
 
       <div style={styles.content}>
         <div style={styles.searchContainer}>
-          
           <form onSubmit={handleSearchAndChat} style={{ display: 'flex', gap: '10px' }}>
             <input 
               type="email" 
@@ -175,13 +197,17 @@ const ChatDashboard = ({ onBack }) => {
             />
             <button type="submit" style={styles.searchBtn}>Chat</button>
           </form>
-          
         </div>
 
         <div style={{ marginTop: '30px' }}>
           <h3 style={{ fontSize: '14px', color: '#666', borderBottom: '1px solid #2a2d35', paddingBottom: '10px' }}>Recent Chats</h3>
           
-          {recentChats.length === 0 ? (
+          {isRecentLoading ? (
+            <div style={styles.loadingContainer}>
+              <div style={styles.spinner} />
+              <span style={styles.loadingText}>Loading chats...</span>
+            </div>
+          ) : recentChats.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#444', fontSize: '12px', marginTop: '20px' }}>No active conversations yet.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
@@ -189,12 +215,10 @@ const ChatDashboard = ({ onBack }) => {
                 <div 
                   key={index} 
                   style={styles.recentChatCard} 
-                  // THE FIX: Email is still used as the secure database reference!
                   onClick={() => setActiveChat(contact.email)}
                 >
                   <div style={{ ...styles.avatarMini, width: '40px', height: '40px', fontSize: '18px' }}>👤</div>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    {/* THE FIX: Username is displayed beautifully on top! */}
                     <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#fff' }}>{contact.username}</span>
                     <span style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{contact.email}</span>
                   </div>
@@ -208,6 +232,7 @@ const ChatDashboard = ({ onBack }) => {
   );
 };
 
+// THE FIX: Changed accents to #ff66b2 (Pink) and added loading styles
 const styles = {
   container: { backgroundColor: '#0a0a0c', minHeight: '100vh', display: 'flex', flexDirection: 'column', color: '#fff', fontFamily: 'sans-serif' },
   header: { display: 'flex', alignItems: 'center', padding: '20px', borderBottom: '1px solid #1a1c23', backgroundColor: '#16181d' },
@@ -217,14 +242,18 @@ const styles = {
   content: { padding: '20px', flex: 1 },
   searchContainer: { backgroundColor: '#16181d', padding: '20px', borderRadius: '12px', border: '1px solid #2a2d35' },
   searchInput: { flex: 1, padding: '12px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '8px', color: '#fff', fontSize: '14px' },
-  searchBtn: { backgroundColor: '#00e5ff', color: '#000', border: 'none', padding: '0 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
+  searchBtn: { backgroundColor: '#ff66b2', color: '#000', border: 'none', padding: '0 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
   chatWindow: { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', backgroundColor: '#0a0a0c' },
   messageBubbleContainer: { display: 'flex', width: '100%', marginBottom: '15px' },
   messageBubble: { maxWidth: '75%', padding: '10px 15px', borderRadius: '12px', display: 'flex', flexDirection: 'column' },
   chatInputContainer: { display: 'flex', padding: '15px', backgroundColor: '#16181d', borderTop: '1px solid #2a2d35', gap: '10px' },
   chatInput: { flex: 1, padding: '15px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '24px', color: '#fff', fontSize: '14px' },
-  sendBtn: { backgroundColor: '#00e5ff', color: '#000', border: 'none', width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  recentChatCard: { display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', backgroundColor: '#16181d', borderRadius: '8px', cursor: 'pointer', border: '1px solid #2a2d35' }
+  sendBtn: { backgroundColor: '#ff66b2', color: '#000', border: 'none', width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  recentChatCard: { display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', backgroundColor: '#16181d', borderRadius: '8px', cursor: 'pointer', border: '1px solid #2a2d35' },
+  
+  loadingContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '40px', gap: '15px' },
+  spinner: { width: '40px', height: '40px', border: '4px solid rgba(255, 102, 178, 0.1)', borderTop: '4px solid #ff66b2', borderRadius: '50%', animation: 'spin 1s linear infinite' },
+  loadingText: { color: '#888', fontSize: '14px' }
 };
 
 export default ChatDashboard;

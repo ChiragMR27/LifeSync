@@ -10,6 +10,7 @@ const GroupChat = ({ groupId, onBack }) => {
   const [newMemberEmail, setNewMemberEmail] = useState('');
   
   const [memberUsernames, setMemberUsernames] = useState({});
+  const [isLoading, setIsLoading] = useState(true); // THE FIX: Initializing load state
 
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
@@ -19,7 +20,6 @@ const GroupChat = ({ groupId, onBack }) => {
       const currentGroup = response.data.find(g => String(g.id) === String(groupId));
       
       if (currentGroup) {
-        // THE FIX: Forcing all emails to lowercase immediately so the Admin checks never fail!
         setGroupDetails({
           ...currentGroup,
           leaderEmail: String(currentGroup.leaderEmail || '').toLowerCase().trim(),
@@ -51,13 +51,23 @@ const GroupChat = ({ groupId, onBack }) => {
     }
   };
 
+  // THE FIX: Bundle initial fetches so we disable the loading screen when they finish!
   useEffect(() => {
-    if (groupId) {
-      fetchGroupDetails();
-      fetchMessages();
-      const interval = setInterval(fetchMessages, 3000); 
-      return () => clearInterval(interval);
-    }
+    let interval;
+    const loadData = async () => {
+      if (groupId) {
+        setIsLoading(true);
+        await fetchGroupDetails();
+        await fetchMessages();
+        setIsLoading(false);
+        interval = setInterval(fetchMessages, 3000); 
+      }
+    };
+    loadData();
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [groupId]);
 
   useEffect(() => {
@@ -140,11 +150,12 @@ const GroupChat = ({ groupId, onBack }) => {
 
   return (
     <div style={styles.container}>
+      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+
       <div style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
           <button onClick={onBack} style={styles.backBtn}>←</button>
           
-          {/* THE FIX: Expanded the clickable area so the entire block registers the tap instantly */}
           <div 
             style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer', flex: 1, paddingLeft: '5px' }}
             onClick={() => setShowMembersModal(true)}
@@ -158,24 +169,33 @@ const GroupChat = ({ groupId, onBack }) => {
       </div>
 
       <div style={styles.chatWindow}>
-        <p style={{ textAlign: 'center', fontSize: '10px', color: '#666', margin: '10px 0' }}>
-          Group Chat established. Messages are shared with all members.
-        </p>
-        
-        {messages.map((msg) => {
-          const isMe = msg.senderEmail === currentUserEmail;
-          const senderName = memberUsernames[msg.senderEmail] || msg.senderEmail.split('@')[0];
+        {isLoading ? (
+          <div style={styles.loadingContainer}>
+            <div style={styles.spinner} />
+            <span style={styles.loadingText}>Loading messages...</span>
+          </div>
+        ) : (
+          <>
+            <p style={{ textAlign: 'center', fontSize: '10px', color: '#666', margin: '10px 0' }}>
+              Group Chat established. Messages are shared with all members.
+            </p>
+            
+            {messages.map((msg) => {
+              const isMe = msg.senderEmail === currentUserEmail;
+              const senderName = memberUsernames[msg.senderEmail] || msg.senderEmail.split('@')[0];
 
-          return (
-            <div key={msg.id} style={{ ...styles.messageBubbleContainer, justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-              <div style={{ ...styles.messageBubble, backgroundColor: isMe ? '#ff4d4d' : '#2a2d35', color: isMe ? '#000' : '#fff' }}>
-                {!isMe && <span style={{ fontSize: '10px', color: '#ffc107', fontWeight: 'bold', marginBottom: '2px' }}>{senderName}</span>}
-                <p style={{ margin: 0, fontSize: '14px' }}>{msg.text}</p>
-                <span style={{ fontSize: '9px', opacity: 0.6, alignSelf: 'flex-end', marginTop: '4px' }}>{msg.timestamp}</span>
-              </div>
-            </div>
-          );
-        })}
+              return (
+                <div key={msg.id} style={{ ...styles.messageBubbleContainer, justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                  <div style={{ ...styles.messageBubble, backgroundColor: isMe ? '#ff4d4d' : '#2a2d35', color: isMe ? '#000' : '#fff' }}>
+                    {!isMe && <span style={{ fontSize: '10px', color: '#ffc107', fontWeight: 'bold', marginBottom: '2px' }}>{senderName}</span>}
+                    <p style={{ margin: 0, fontSize: '14px' }}>{msg.text}</p>
+                    <span style={{ fontSize: '9px', opacity: 0.6, alignSelf: 'flex-end', marginTop: '4px' }}>{msg.timestamp}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
 
       <form onSubmit={handleSendMessage} style={styles.chatInputContainer}>
@@ -189,6 +209,7 @@ const GroupChat = ({ groupId, onBack }) => {
         <button type="submit" style={styles.sendBtn}>➤</button>
       </form>
 
+      {/* Modals remain exactly the same */}
       {showMembersModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
@@ -266,7 +287,12 @@ const styles = {
   makeLeaderBtn: { backgroundColor: 'transparent', border: '1px solid #ffc107', color: '#ffc107', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
   kickBtn: { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
   modalInput: { flex: 1, padding: '10px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' },
-  modalAddBtn: { backgroundColor: '#ff4d4d', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }
+  modalAddBtn: { backgroundColor: '#ff4d4d', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
+  
+  // THE FIX: New styles for the loading spinner
+  loadingContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '80px', gap: '15px' },
+  spinner: { width: '40px', height: '40px', border: '4px solid rgba(255, 77, 77, 0.1)', borderTop: '4px solid #ff4d4d', borderRadius: '50%', animation: 'spin 1s linear infinite' },
+  loadingText: { color: '#888', fontSize: '14px' }
 };
 
 export default GroupChat;

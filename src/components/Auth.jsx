@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import { authApi } from '../api/axiosConfig';
 
 const Auth = ({ onLoginSuccess }) => {
-  const [isLogin, setIsLogin] = useState(false);
+  // THE FIX: Changed to true so the app defaults to Login!
+  const [isLogin, setIsLogin] = useState(true);
   const [otpMode, setOtpMode] = useState(false); 
   
   const [username, setUsername] = useState('');
@@ -63,7 +64,6 @@ const Auth = ({ onLoginSuccess }) => {
     e.preventDefault();
     setMessage('');
     try {
-      // The backend now accepts 'username' payload as EITHER an email or a username
       const response = await authApi.post('/login', { username, password });
       
       const token = response.data.token;
@@ -321,7 +321,6 @@ const Auth = ({ onLoginSuccess }) => {
               </div>
             ) : (
               <div style={styles.inputGroup}>
-                {/* THE FIX: Updated label and placeholder for clarity */}
                 <label style={styles.label}>Username or Email</label>
                 <div style={styles.inputContainer}>
                   <input

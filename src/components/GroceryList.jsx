@@ -6,20 +6,22 @@ const GroceryList = ({ groupId, onBack }) => {
   const [newItem, setNewItem] = useState('');
   const [items, setItems] = useState([]);
   
-  const [groupDetails, setGroupDetails] = useState(null); // Added to store the group name
+  const [groupDetails, setGroupDetails] = useState(null); 
   const [membersCount, setMembersCount] = useState(1);
   const [membersList, setMembersList] = useState([]);
   const [leaderEmail, setLeaderEmail] = useState('');
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
   
-  const [memberUsernames, setMemberUsernames] = useState({}); // Added to display real names
+  const [memberUsernames, setMemberUsernames] = useState({}); 
 
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [itemToMove, setItemToMove] = useState(null);
   const [isDirectAdd, setIsDirectAdd] = useState(false);
   const [quantity, setQuantity] = useState(0.25);
   const [unit, setUnit] = useState('kg');
+  
+  const [isLoading, setIsLoading] = useState(true); // THE FIX: Initializing load state
 
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
@@ -60,11 +62,17 @@ const GroceryList = ({ groupId, onBack }) => {
     }
   };
 
+  // THE FIX: Bundle initial fetches so we disable the loading screen when they finish!
   useEffect(() => {
-    if (groupId) {
-      fetchGroupDetails();
-      fetchGroceries();
-    }
+    const loadData = async () => {
+      if (groupId) {
+        setIsLoading(true);
+        await fetchGroupDetails();
+        await fetchGroceries();
+        setIsLoading(false);
+      }
+    };
+    loadData();
   }, [groupId]);
 
   useEffect(() => {
@@ -204,11 +212,12 @@ const GroceryList = ({ groupId, onBack }) => {
 
   return (
     <div style={styles.container}>
+      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+
       <div style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <button onClick={onBack} style={styles.backBtn}>←</button>
           
-          {/* THE FIX: Clickable header to open Manage Members */}
           <div 
             style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
             onClick={() => setShowAddMember(true)}
@@ -228,82 +237,92 @@ const GroceryList = ({ groupId, onBack }) => {
       </div>
 
       <div style={styles.content}>
-        {activeTab === 'shopping' && (
+        {isLoading ? (
+          <div style={styles.loadingContainer}>
+            <div style={styles.spinner} />
+            <span style={styles.loadingText}>Loading groceries...</span>
+          </div>
+        ) : (
           <>
-            <form onSubmit={(e) => e.preventDefault()} style={styles.inputForm}>
-              <input type="text" placeholder="Add new grocery item..." value={newItem} onChange={(e) => setNewItem(e.target.value)} style={styles.input} />
-              <div style={{ display: 'flex', gap: '5px' }}>
-                <button type="button" onClick={(e) => handleAddItem(e, true)} style={styles.addBtnDefault}>Add Default</button>
-                <button type="button" onClick={(e) => handleAddItem(e, false)} style={styles.addBtnCart}>Add to Cart</button>
-              </div>
-            </form>
-
-            <div style={styles.list}>
-              {items.filter(item => item.isDefault).map((item) => {
-                const itemAddedBy = String(item.addedBy || '').toLowerCase().trim();
-                const canDelete = currentUserEmail === leaderEmail || currentUserEmail === itemAddedBy;
-
-                return (
-                  <div key={item.id} style={styles.listItem}>
-                    <span>{item.text}</span>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      {!item.inCart ? (
-                        <button onClick={() => { setItemToMove(item); setIsDirectAdd(false); setShowQuantityModal(true); }} style={styles.actionBtn}>Move to Cart</button>
-                      ) : (
-                        <span style={{ color: '#00e5ff', fontSize: '12px' }}>In Cart ✓</span>
-                      )}
-                      
-                      {canDelete && (
-                        <button onClick={() => familyApi.delete(`/groups/${groupId}/groceries/${item.id}`).then(fetchGroceries)} style={styles.deleteBtn}>🗑️</button>
-                      )}
-                    </div>
+            {activeTab === 'shopping' && (
+              <>
+                <form onSubmit={(e) => e.preventDefault()} style={styles.inputForm}>
+                  <input type="text" placeholder="Add new grocery item..." value={newItem} onChange={(e) => setNewItem(e.target.value)} style={styles.input} />
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <button type="button" onClick={(e) => handleAddItem(e, true)} style={styles.addBtnDefault}>Add Default</button>
+                    <button type="button" onClick={(e) => handleAddItem(e, false)} style={styles.addBtnCart}>Add to Cart</button>
                   </div>
-                );
-              })}
-            </div>
-          </>
-        )}
+                </form>
 
-        {activeTab === 'status' && (
-          <div style={styles.list}>
-            {items.filter(item => item.inCart).map((item) => (
-              <div key={item.id} style={styles.listItem}>
-                <span>
-                  {item.text} 
-                  {item.quantity && <strong style={{ color: '#00e5ff', marginLeft: '8px' }}>({item.quantity} {item.unit})</strong>}
-                </span>
-                {item.claimedBy ? (
-                  <span style={{ fontSize: '12px', color: '#ffc107' }}>Claimed by {(item.claimedBy || '').split('@')[0]}</span>
-                ) : (
-                  String(item.addedBy || '').toLowerCase().trim() !== currentUserEmail ? (
-                    <button onClick={() => updateItem(item, { claimedBy: currentUserEmail })} style={styles.gotItBtn}>Got It!</button>
-                  ) : (
-                    <span style={{ fontSize: '12px', color: '#888' }}>Waiting for claim...</span>
-                  )
+                <div style={styles.list}>
+                  {items.filter(item => item.isDefault).map((item) => {
+                    const itemAddedBy = String(item.addedBy || '').toLowerCase().trim();
+                    const canDelete = currentUserEmail === leaderEmail || currentUserEmail === itemAddedBy;
+
+                    return (
+                      <div key={item.id} style={styles.listItem}>
+                        <span>{item.text}</span>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          {!item.inCart ? (
+                            <button onClick={() => { setItemToMove(item); setIsDirectAdd(false); setShowQuantityModal(true); }} style={styles.actionBtn}>Move to Cart</button>
+                          ) : (
+                            <span style={{ color: '#00e5ff', fontSize: '12px' }}>In Cart ✓</span>
+                          )}
+                          
+                          {canDelete && (
+                            <button onClick={() => familyApi.delete(`/groups/${groupId}/groceries/${item.id}`).then(fetchGroceries)} style={styles.deleteBtn}>🗑️</button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {activeTab === 'status' && (
+              <div style={styles.list}>
+                {items.filter(item => item.inCart).map((item) => (
+                  <div key={item.id} style={styles.listItem}>
+                    <span>
+                      {item.text} 
+                      {item.quantity && <strong style={{ color: '#00e5ff', marginLeft: '8px' }}>({item.quantity} {item.unit})</strong>}
+                    </span>
+                    {item.claimedBy ? (
+                      <span style={{ fontSize: '12px', color: '#ffc107' }}>Claimed by {(item.claimedBy || '').split('@')[0]}</span>
+                    ) : (
+                      String(item.addedBy || '').toLowerCase().trim() !== currentUserEmail ? (
+                        <button onClick={() => updateItem(item, { claimedBy: currentUserEmail })} style={styles.gotItBtn}>Got It!</button>
+                      ) : (
+                        <span style={{ fontSize: '12px', color: '#888' }}>Waiting for claim...</span>
+                      )
+                    )}
+                  </div>
+                ))}
+                {items.filter(item => item.inCart).length === 0 && <p style={{ color: '#888', textAlign: 'center' }}>Cart is empty.</p>}
+              </div>
+            )}
+
+            {activeTab === 'checkout' && (
+              <div style={styles.list}>
+                {items.filter(item => item.inCart && String(item.claimedBy || '').toLowerCase().trim() === currentUserEmail).map((item) => (
+                  <div key={item.id} style={styles.listItem}>
+                    <span style={{ textDecoration: 'line-through', color: '#888' }}>
+                      {item.text} {item.quantity && `(${item.quantity} ${item.unit})`}
+                    </span>
+                    <button onClick={() => handleDeleteOrCheckout(item)} style={styles.deleteBtn}>Delete Cart Item</button>
+                  </div>
+                ))}
+                {items.filter(item => item.inCart && String(item.claimedBy || '').toLowerCase().trim() === currentUserEmail).length === 0 && (
+                  <p style={{ color: '#888', textAlign: 'center' }}>You haven't claimed any items to checkout yet.</p>
                 )}
               </div>
-            ))}
-            {items.filter(item => item.inCart).length === 0 && <p style={{ color: '#888', textAlign: 'center' }}>Cart is empty.</p>}
-          </div>
-        )}
-
-        {activeTab === 'checkout' && (
-          <div style={styles.list}>
-            {items.filter(item => item.inCart && String(item.claimedBy || '').toLowerCase().trim() === currentUserEmail).map((item) => (
-              <div key={item.id} style={styles.listItem}>
-                <span style={{ textDecoration: 'line-through', color: '#888' }}>
-                  {item.text} {item.quantity && `(${item.quantity} ${item.unit})`}
-                </span>
-                <button onClick={() => handleDeleteOrCheckout(item)} style={styles.deleteBtn}>Delete Cart Item</button>
-              </div>
-            ))}
-            {items.filter(item => item.inCart && String(item.claimedBy || '').toLowerCase().trim() === currentUserEmail).length === 0 && (
-              <p style={{ color: '#888', textAlign: 'center' }}>You haven't claimed any items to checkout yet.</p>
             )}
-          </div>
+          </>
         )}
       </div>
 
+      {/* Modals remain exactly the same */}
       {showQuantityModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
@@ -412,7 +431,12 @@ const styles = {
   makeLeaderBtn: { backgroundColor: 'transparent', border: '1px solid #ffc107', color: '#ffc107', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
   kickBtn: { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
   modalInput: { flex: 1, padding: '10px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' },
-  modalAddBtn: { backgroundColor: '#00e5ff', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }
+  modalAddBtn: { backgroundColor: '#00e5ff', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
+  
+  // THE FIX: New styles for the loading spinner
+  loadingContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '80px', gap: '15px' },
+  spinner: { width: '40px', height: '40px', border: '4px solid rgba(0, 229, 255, 0.1)', borderTop: '4px solid #00e5ff', borderRadius: '50%', animation: 'spin 1s linear infinite' },
+  loadingText: { color: '#888', fontSize: '14px' }
 };
 
 export default GroceryList;

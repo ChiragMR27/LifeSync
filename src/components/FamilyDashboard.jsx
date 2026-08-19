@@ -3,6 +3,7 @@ import { familyApi } from '../api/axiosConfig';
 
 const FamilyDashboard = ({ onNavigate }) => {
   const [groups, setGroups] = useState([]);
+  const [isLoading, setIsLoading] = useState(true); // THE FIX: Loading state added
 
   const fetchGroups = async () => {
     try {
@@ -11,6 +12,8 @@ const FamilyDashboard = ({ onNavigate }) => {
       setGroups(response.data);
     } catch (error) {
       console.error("Error fetching groups from database:", error);
+    } finally {
+      setIsLoading(false); // Disable loading when fetch completes
     }
   };
 
@@ -20,12 +23,20 @@ const FamilyDashboard = ({ onNavigate }) => {
 
   return (
     <div style={styles.container}>
+      {/* THE FIX: Inline CSS animation for the spinning loader */}
+      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      
       <div style={styles.header}>
         <h1 style={{ fontSize: '20px', margin: 0 }}>LifeSync App</h1>
       </div>
       
       <div style={styles.content}>
-        {groups.length === 0 ? (
+        {isLoading ? (
+          <div style={styles.loadingContainer}>
+            <div style={styles.spinner} />
+            <span style={styles.loadingText}>Loading groups...</span>
+          </div>
+        ) : groups.length === 0 ? (
           <div style={styles.emptyStateContainer}>
             <div style={styles.iconCircle}>
               <span style={{ fontSize: '32px' }}>👥</span>
@@ -46,7 +57,6 @@ const FamilyDashboard = ({ onNavigate }) => {
                 <div 
                   key={group.id} 
                   style={styles.groupCard}
-                  // THE FIX: Now specifically routes to the Group Chat room!
                   onClick={() => {
                     if (group.type === 'Grocery') onNavigate('grocery-list', group.id);
                     else if (group.type === 'Chat') onNavigate('group-chat', group.id); 
@@ -116,7 +126,12 @@ const styles = {
   floatingCreateButton: { backgroundColor: '#00e5ff', color: '#000', border: 'none', padding: '12px 24px', borderRadius: '24px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' },
   bottomNav: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#0a0a0c', borderTop: '1px solid #1a1c23', display: 'flex', justifyContent: 'space-around', padding: '15px 0' },
   navItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#666', fontSize: '10px', cursor: 'pointer' },
-  navIcon: { fontSize: '18px', marginBottom: '4px' }
+  navIcon: { fontSize: '18px', marginBottom: '4px' },
+  
+  // THE FIX: New styles for the loading spinner
+  loadingContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '80px', gap: '15px' },
+  spinner: { width: '40px', height: '40px', border: '4px solid rgba(0, 229, 255, 0.1)', borderTop: '4px solid #00e5ff', borderRadius: '50%', animation: 'spin 1s linear infinite' },
+  loadingText: { color: '#888', fontSize: '14px' }
 };
 
 export default FamilyDashboard;

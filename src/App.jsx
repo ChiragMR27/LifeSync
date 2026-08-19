@@ -10,7 +10,6 @@ import ChatDashboard from './components/ChatDashboard';
 import GroupChat from './components/GroupChat'; 
 import './App.css';
 
-// THE FIX: Public VAPID Key to encrypt the connection
 const PUBLIC_VAPID_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U=';
 
 function urlBase64ToUint8Array(base64String) {
@@ -29,21 +28,45 @@ function App() {
   const [currentView, setCurrentView] = useState('home'); 
   const [activeGroupId, setActiveGroupId] = useState(null);
 
-  // THE FIX: Register the Service Worker & Web Push Subscription upon login
+  // THE FIX: Bulletproof Background Push Registration
   useEffect(() => {
-    if (isAuthenticated && 'serviceWorker' in navigator && 'PushManager' in window) {
-      navigator.serviceWorker.register('/service-worker.js').then(registration => {
-        return registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
-        });
-      }).then(subscription => {
-        const email = localStorage.getItem('userEmail');
-        // Register the device with both microservices
-        authApi.post(`/chat/subscribe?email=${email}`, subscription).catch(console.error);
-        familyApi.post(`/groups/subscribe?email=${email}`, subscription).catch(console.error);
-      }).catch(err => console.error("Push registration failed:", err));
-    }
+    const initPush = async () => {
+      if (isAuthenticated && 'serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+          // 1. Force the permission prompt BEFORE subscribing
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') return;
+
+          // 2. Register the background script
+          const registration = await navigator.serviceWorker.register('/service-worker.js');
+          
+          // 3. CRITICAL: Clear out any old ghost subscriptions that cause silent failures
+          const existingSub = await registration.pushManager.getSubscription();
+          if (existingSub) {
+            await existingSub.unsubscribe();
+          }
+
+          // 4. Generate the fresh device subscription
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+          });
+
+          // 5. Strictly lowercase the email so Java's ConcurrentHashMap finds it perfectly!
+          const email = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
+          const subJson = subscription.toJSON();
+
+          // 6. Send the device keys to Java
+          authApi.post(`/chat/subscribe?email=${email}`, subJson).catch(console.error);
+          familyApi.post(`/groups/subscribe?email=${email}`, subJson).catch(console.error);
+          
+        } catch (err) {
+          console.error("Background Push registration failed:", err);
+        }
+      }
+    };
+    
+    initPush();
   }, [isAuthenticated]);
 
   const handleLogout = () => {

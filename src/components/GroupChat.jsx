@@ -17,8 +17,14 @@ const GroupChat = ({ groupId, onBack }) => {
     try {
       const response = await familyApi.get(`/groups?email=${currentUserEmail}`);
       const currentGroup = response.data.find(g => String(g.id) === String(groupId));
+      
       if (currentGroup) {
-        setGroupDetails(currentGroup);
+        // THE FIX: Forcing all emails to lowercase immediately so the Admin checks never fail!
+        setGroupDetails({
+          ...currentGroup,
+          leaderEmail: String(currentGroup.leaderEmail || '').toLowerCase().trim(),
+          members: (currentGroup.members || []).map(m => String(m).toLowerCase().trim())
+        });
       }
     } catch (error) {
       console.error("Error fetching group details:", error);
@@ -135,12 +141,12 @@ const GroupChat = ({ groupId, onBack }) => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
           <button onClick={onBack} style={styles.backBtn}>←</button>
           
-          {/* Clickable header to open Group Info */}
+          {/* THE FIX: Expanded the clickable area so the entire block registers the tap instantly */}
           <div 
-            style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
+            style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer', flex: 1, paddingLeft: '5px' }}
             onClick={() => setShowMembersModal(true)}
           >
             <h2 style={styles.title}>{groupDetails?.name || 'Loading...'}</h2>

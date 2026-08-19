@@ -16,9 +16,11 @@ const ChatDashboard = ({ onBack }) => {
   const prevMsgLength = useRef(0);
   const initialLoadDone = useRef(false);
 
+  // THE FIX: Auto-scroll anchor reference
+  const messagesEndRef = useRef(null);
+
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
-  // Request native OS notification permission on load
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -96,7 +98,11 @@ const ChatDashboard = ({ onBack }) => {
     }
   }, [isChatLoading]);
 
-  // Triggers OS notification when app/tab is in the background
+  // THE FIX: WhatsApp-style Auto Scroll to the newest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   useEffect(() => {
     if (initialLoadDone.current && messages.length > prevMsgLength.current) {
       const newMsg = messages[messages.length - 1];
@@ -220,6 +226,8 @@ const ChatDashboard = ({ onBack }) => {
                   </div>
                 );
               })}
+              {/* THE FIX: Invisible anchor tag ensuring the chat always pulls downwards */}
+              <div ref={messagesEndRef} />
             </>
           )}
         </div>

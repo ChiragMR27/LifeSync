@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { familyApi, authApi } from '../api/axiosConfig';
 
 const GroupChat = ({ groupId, onBack }) => {
@@ -12,7 +12,18 @@ const GroupChat = ({ groupId, onBack }) => {
   const [memberUsernames, setMemberUsernames] = useState({});
   const [isLoading, setIsLoading] = useState(true); 
 
+  // THE FIX: Notification trackers
+  const prevMsgLength = useRef(0);
+  const initialLoadDone = useRef(false);
+
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
+
+  // Ask for permission on load
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const fetchGroupDetails = async () => {
     try {
@@ -56,6 +67,7 @@ const GroupChat = ({ groupId, onBack }) => {
     const loadData = async () => {
       if (groupId) {
         setIsLoading(true);
+        initialLoadDone.current = false;
         await fetchGroupDetails();
         await fetchMessages();
         setIsLoading(false);
@@ -68,6 +80,28 @@ const GroupChat = ({ groupId, onBack }) => {
       if (interval) clearInterval(interval);
     };
   }, [groupId]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      initialLoadDone.current = true;
+    }
+  }, [isLoading]);
+
+  // THE FIX: Trigger Native Notification if a new group message arrives!
+  useEffect(() => {
+    if (initialLoadDone.current && messages.length > prevMsgLength.current) {
+      const newMsg = messages[messages.length - 1];
+      if (newMsg && newMsg.senderEmail !== currentUserEmail && Notification.permission === 'granted') {
+        const senderName = memberUsernames[newMsg.senderEmail] || newMsg.senderEmail.split('@')[0];
+        
+        const notif = new Notification(`${groupDetails?.name || 'Group Chat'}`, { 
+          body: `${senderName}: ${newMsg.text}`
+        });
+        notif.onclick = () => window.focus();
+      }
+    }
+    prevMsgLength.current = messages.length;
+  }, [messages, currentUserEmail, memberUsernames, groupDetails]);
 
   useEffect(() => {
     if (groupDetails?.members) {
@@ -274,14 +308,10 @@ const styles = {
   title: { margin: 0, fontSize: '18px' },
   chatWindow: { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', backgroundColor: '#0a0a0c' },
   messageBubbleContainer: { display: 'flex', width: '100%', marginBottom: '15px' },
-  
-  // THE FIX: Added width: 'fit-content' so the bubble perfectly hugs the text
   messageBubble: { maxWidth: '75%', width: 'fit-content', padding: '10px 15px', borderRadius: '12px', display: 'flex', flexDirection: 'column' },
-  
   chatInputContainer: { display: 'flex', padding: '15px', backgroundColor: '#16181d', borderTop: '1px solid #2a2d35', gap: '10px' },
   chatInput: { flex: 1, padding: '15px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '24px', color: '#fff', fontSize: '14px' },
   sendBtn: { backgroundColor: '#ff66b2', color: '#000', border: 'none', width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  
   modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
   modalContent: { backgroundColor: '#16181d', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '350px', border: '1px solid #2a2d35' },
   closeBtn: { background: 'none', border: 'none', color: '#888', fontSize: '18px', cursor: 'pointer' },
@@ -292,7 +322,6 @@ const styles = {
   kickBtn: { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
   modalInput: { flex: 1, padding: '10px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' },
   modalAddBtn: { backgroundColor: '#ff66b2', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
-  
   loadingContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '80px', gap: '15px' },
   spinner: { width: '40px', height: '40px', border: '4px solid rgba(255, 102, 178, 0.1)', borderTop: '4px solid #ff66b2', borderRadius: '50%', animation: 'spin 1s linear infinite' },
   loadingText: { color: '#888', fontSize: '14px' }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { familyApi, authApi } from '../api/axiosConfig';
 
 const GroceryList = ({ groupId, onBack }) => {
@@ -21,9 +21,20 @@ const GroceryList = ({ groupId, onBack }) => {
   const [quantity, setQuantity] = useState(0.25);
   const [unit, setUnit] = useState('kg');
   
-  const [isLoading, setIsLoading] = useState(true); // THE FIX: Initializing load state
+  const [isLoading, setIsLoading] = useState(true);
+
+  // THE FIX: Notification trackers
+  const prevItemsLength = useRef(0);
+  const initialLoadDone = useRef(false);
 
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
+
+  // Ask for permission on load
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const fetchGroupDetails = async () => {
     try {
@@ -62,11 +73,11 @@ const GroceryList = ({ groupId, onBack }) => {
     }
   };
 
-  // THE FIX: Bundle initial fetches so we disable the loading screen when they finish!
   useEffect(() => {
     const loadData = async () => {
       if (groupId) {
         setIsLoading(true);
+        initialLoadDone.current = false;
         await fetchGroupDetails();
         await fetchGroceries();
         setIsLoading(false);
@@ -74,6 +85,29 @@ const GroceryList = ({ groupId, onBack }) => {
     };
     loadData();
   }, [groupId]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      initialLoadDone.current = true;
+    }
+  }, [isLoading]);
+
+  // THE FIX: Trigger Native Notification if a new grocery item is added!
+  useEffect(() => {
+    if (initialLoadDone.current && items.length > prevItemsLength.current) {
+      const newItemObj = items[items.length - 1]; 
+      
+      if (newItemObj && newItemObj.addedBy && newItemObj.addedBy !== currentUserEmail && Notification.permission === 'granted') {
+        const senderName = memberUsernames[newItemObj.addedBy] || newItemObj.addedBy.split('@')[0];
+        
+        const notif = new Notification(`Grocery Update in ${groupDetails?.name || 'Group'}`, { 
+          body: `${senderName} added: ${newItemObj.text}` 
+        });
+        notif.onclick = () => window.focus();
+      }
+    }
+    prevItemsLength.current = items.length;
+  }, [items, currentUserEmail, memberUsernames, groupDetails]);
 
   useEffect(() => {
     if (membersList.length > 0) {
@@ -322,7 +356,6 @@ const GroceryList = ({ groupId, onBack }) => {
         )}
       </div>
 
-      {/* Modals remain exactly the same */}
       {showQuantityModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
@@ -432,8 +465,6 @@ const styles = {
   kickBtn: { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
   modalInput: { flex: 1, padding: '10px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' },
   modalAddBtn: { backgroundColor: '#00e5ff', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
-  
-  // THE FIX: New styles for the loading spinner
   loadingContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '80px', gap: '15px' },
   spinner: { width: '40px', height: '40px', border: '4px solid rgba(0, 229, 255, 0.1)', borderTop: '4px solid #00e5ff', borderRadius: '50%', animation: 'spin 1s linear infinite' },
   loadingText: { color: '#888', fontSize: '14px' }

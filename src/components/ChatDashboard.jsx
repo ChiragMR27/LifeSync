@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { authApi } from '../api/axiosConfig';
 
 const ChatDashboard = ({ onBack }) => {
@@ -12,7 +12,18 @@ const ChatDashboard = ({ onBack }) => {
   const [isRecentLoading, setIsRecentLoading] = useState(true);
   const [isChatLoading, setIsChatLoading] = useState(false);
 
+  // THE FIX: Notification trackers
+  const prevMsgLength = useRef(0);
+  const initialLoadDone = useRef(false);
+
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
+
+  // Ask for permission on load
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const fetchRecentChats = async () => {
     try {
@@ -47,11 +58,36 @@ const ChatDashboard = ({ onBack }) => {
   useEffect(() => {
     if (activeChat) {
       setIsChatLoading(true);
+      initialLoadDone.current = false; // Reset for new chats
       fetchMessages().then(() => setIsChatLoading(false));
       const interval = setInterval(fetchMessages, 3000); 
       return () => clearInterval(interval);
     }
   }, [activeChat]);
+
+  // THE FIX: Wait until the first load is done to avoid spamming old messages
+  useEffect(() => {
+    if (!isChatLoading) {
+      initialLoadDone.current = true;
+    }
+  }, [isChatLoading]);
+
+  // THE FIX: Trigger Native Notification if a new message arrives!
+  useEffect(() => {
+    if (initialLoadDone.current && messages.length > prevMsgLength.current) {
+      const newMsg = messages[messages.length - 1];
+      if (newMsg && newMsg.senderEmail !== currentUserEmail && Notification.permission === 'granted') {
+        const senderName = recentChats.find(c => c.email === newMsg.senderEmail)?.username || newMsg.senderEmail.split('@')[0];
+        
+        const notif = new Notification(`New message from ${senderName}`, { 
+          body: newMsg.text,
+          icon: '/favicon.ico' // Optional: uses standard favicon
+        });
+        notif.onclick = () => window.focus();
+      }
+    }
+    prevMsgLength.current = messages.length;
+  }, [messages, currentUserEmail, recentChats]);
 
   const handleSearchAndChat = async (e) => {
     e.preventDefault();
@@ -241,15 +277,11 @@ const styles = {
   searchBtn: { backgroundColor: '#ff66b2', color: '#000', border: 'none', padding: '0 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
   chatWindow: { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', backgroundColor: '#0a0a0c' },
   messageBubbleContainer: { display: 'flex', width: '100%', marginBottom: '15px' },
-  
-  // THE FIX: Added width: 'fit-content' so the bubble perfectly hugs the text
   messageBubble: { maxWidth: '75%', width: 'fit-content', padding: '10px 15px', borderRadius: '12px', display: 'flex', flexDirection: 'column' },
-  
   chatInputContainer: { display: 'flex', padding: '15px', backgroundColor: '#16181d', borderTop: '1px solid #2a2d35', gap: '10px' },
   chatInput: { flex: 1, padding: '15px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '24px', color: '#fff', fontSize: '14px' },
   sendBtn: { backgroundColor: '#ff66b2', color: '#000', border: 'none', width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' },
   recentChatCard: { display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', backgroundColor: '#16181d', borderRadius: '8px', cursor: 'pointer', border: '1px solid #2a2d35' },
-  
   loadingContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '40px', gap: '15px' },
   spinner: { width: '40px', height: '40px', border: '4px solid rgba(255, 102, 178, 0.1)', borderTop: '4px solid #ff66b2', borderRadius: '50%', animation: 'spin 1s linear infinite' },
   loadingText: { color: '#888', fontSize: '14px' }

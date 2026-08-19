@@ -9,7 +9,6 @@ const ChatDashboard = ({ onBack }) => {
   
   const [recentChats, setRecentChats] = useState([]);
   
-  // THE FIX: Added loading states for both views
   const [isRecentLoading, setIsRecentLoading] = useState(true);
   const [isChatLoading, setIsChatLoading] = useState(false);
 
@@ -146,9 +145,7 @@ const ChatDashboard = ({ onBack }) => {
                 const isMe = msg.senderEmail === currentUserEmail;
                 return (
                   <div key={msg.id} style={{ ...styles.messageBubbleContainer, justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                    {/* THE FIX: Updated to Pink theme */}
                     <div style={{ ...styles.messageBubble, backgroundColor: isMe ? '#ff66b2' : '#2a2d35', color: isMe ? '#000' : '#fff' }}>
-                      {/* THE FIX: WhatsApp style alignment! */}
                       <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '8px' }}>
                         <span style={{ fontSize: '14px', wordBreak: 'break-word', lineHeight: '1.4' }}>{msg.text}</span>
                         <span style={{ fontSize: '9px', opacity: 0.6, marginLeft: 'auto', paddingTop: '5px', whiteSpace: 'nowrap' }}>{msg.timestamp}</span>
@@ -232,7 +229,6 @@ const ChatDashboard = ({ onBack }) => {
   );
 };
 
-// THE FIX: Changed accents to #ff66b2 (Pink) and added loading styles
 const styles = {
   container: { backgroundColor: '#0a0a0c', minHeight: '100vh', display: 'flex', flexDirection: 'column', color: '#fff', fontFamily: 'sans-serif' },
   header: { display: 'flex', alignItems: 'center', padding: '20px', borderBottom: '1px solid #1a1c23', backgroundColor: '#16181d' },
@@ -245,7 +241,10 @@ const styles = {
   searchBtn: { backgroundColor: '#ff66b2', color: '#000', border: 'none', padding: '0 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
   chatWindow: { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', backgroundColor: '#0a0a0c' },
   messageBubbleContainer: { display: 'flex', width: '100%', marginBottom: '15px' },
-  messageBubble: { maxWidth: '75%', padding: '10px 15px', borderRadius: '12px', display: 'flex', flexDirection: 'column' },
+  
+  // THE FIX: Added width: 'fit-content' so the bubble perfectly hugs the text
+  messageBubble: { maxWidth: '75%', width: 'fit-content', padding: '10px 15px', borderRadius: '12px', display: 'flex', flexDirection: 'column' },
+  
   chatInputContainer: { display: 'flex', padding: '15px', backgroundColor: '#16181d', borderTop: '1px solid #2a2d35', gap: '10px' },
   chatInput: { flex: 1, padding: '15px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '24px', color: '#fff', fontSize: '14px' },
   sendBtn: { backgroundColor: '#ff66b2', color: '#000', border: 'none', width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' },

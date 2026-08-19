@@ -185,11 +185,9 @@ const GroupChat = ({ groupId, onBack }) => {
 
               return (
                 <div key={msg.id} style={{ ...styles.messageBubbleContainer, justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                  {/* THE FIX: Changed bubble color to Pink */}
                   <div style={{ ...styles.messageBubble, backgroundColor: isMe ? '#ff66b2' : '#2a2d35', color: isMe ? '#000' : '#fff' }}>
                     {!isMe && <span style={{ fontSize: '10px', color: '#ffc107', fontWeight: 'bold', marginBottom: '4px' }}>{senderName}</span>}
                     
-                    {/* THE FIX: WhatsApp style alignment! The text and time sit in a row, with the time pushed to the far right. */}
                     <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '8px' }}>
                       <span style={{ fontSize: '14px', wordBreak: 'break-word', lineHeight: '1.4' }}>{msg.text}</span>
                       <span style={{ fontSize: '9px', opacity: 0.6, marginLeft: 'auto', paddingTop: '5px', whiteSpace: 'nowrap' }}>{msg.timestamp}</span>
@@ -269,7 +267,6 @@ const GroupChat = ({ groupId, onBack }) => {
   );
 };
 
-// THE FIX: Changed all #ff4d4d borders and backgrounds to #ff66b2 (Pink)
 const styles = {
   container: { backgroundColor: '#0a0a0c', minHeight: '100vh', display: 'flex', flexDirection: 'column', color: '#fff', fontFamily: 'sans-serif', position: 'relative' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderBottom: '1px solid #1a1c23', backgroundColor: '#16181d' },
@@ -277,7 +274,10 @@ const styles = {
   title: { margin: 0, fontSize: '18px' },
   chatWindow: { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', backgroundColor: '#0a0a0c' },
   messageBubbleContainer: { display: 'flex', width: '100%', marginBottom: '15px' },
-  messageBubble: { maxWidth: '75%', padding: '10px 15px', borderRadius: '12px', display: 'flex', flexDirection: 'column' },
+  
+  // THE FIX: Added width: 'fit-content' so the bubble perfectly hugs the text
+  messageBubble: { maxWidth: '75%', width: 'fit-content', padding: '10px 15px', borderRadius: '12px', display: 'flex', flexDirection: 'column' },
+  
   chatInputContainer: { display: 'flex', padding: '15px', backgroundColor: '#16181d', borderTop: '1px solid #2a2d35', gap: '10px' },
   chatInput: { flex: 1, padding: '15px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '24px', color: '#fff', fontSize: '14px' },
   sendBtn: { backgroundColor: '#ff66b2', color: '#000', border: 'none', width: '50px', height: '50px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' },

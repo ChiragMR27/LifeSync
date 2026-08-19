@@ -12,18 +12,17 @@ const ChatDashboard = ({ onBack }) => {
   const [isRecentLoading, setIsRecentLoading] = useState(true);
   const [isChatLoading, setIsChatLoading] = useState(false);
 
-  // THE FIX: Notification trackers
+  // THE FIX: Custom Toast State
+  const [toast, setToast] = useState({ show: false, title: '', body: '' });
   const prevMsgLength = useRef(0);
   const initialLoadDone = useRef(false);
 
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
-  // Ask for permission on load
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
+  const showToast = (title, body) => {
+    setToast({ show: true, title, body });
+    setTimeout(() => setToast({ show: false, title: '', body: '' }), 4000);
+  };
 
   const fetchRecentChats = async () => {
     try {
@@ -58,32 +57,26 @@ const ChatDashboard = ({ onBack }) => {
   useEffect(() => {
     if (activeChat) {
       setIsChatLoading(true);
-      initialLoadDone.current = false; // Reset for new chats
+      initialLoadDone.current = false;
       fetchMessages().then(() => setIsChatLoading(false));
       const interval = setInterval(fetchMessages, 3000); 
       return () => clearInterval(interval);
     }
   }, [activeChat]);
 
-  // THE FIX: Wait until the first load is done to avoid spamming old messages
   useEffect(() => {
     if (!isChatLoading) {
       initialLoadDone.current = true;
     }
   }, [isChatLoading]);
 
-  // THE FIX: Trigger Native Notification if a new message arrives!
+  // THE FIX: Trigger In-App Notification if a new message arrives!
   useEffect(() => {
     if (initialLoadDone.current && messages.length > prevMsgLength.current) {
       const newMsg = messages[messages.length - 1];
-      if (newMsg && newMsg.senderEmail !== currentUserEmail && Notification.permission === 'granted') {
+      if (newMsg && newMsg.senderEmail !== currentUserEmail) {
         const senderName = recentChats.find(c => c.email === newMsg.senderEmail)?.username || newMsg.senderEmail.split('@')[0];
-        
-        const notif = new Notification(`New message from ${senderName}`, { 
-          body: newMsg.text,
-          icon: '/favicon.ico' // Optional: uses standard favicon
-        });
-        notif.onclick = () => window.focus();
+        showToast(`New message from ${senderName}`, newMsg.text);
       }
     }
     prevMsgLength.current = messages.length;
@@ -152,8 +145,19 @@ const ChatDashboard = ({ onBack }) => {
 
     return (
       <div style={styles.container}>
-        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } @keyframes slideDown { from { top: -50px; opacity: 0; } to { top: 20px; opacity: 1; } }`}</style>
         
+        {/* THE FIX: In-App Toast Notification */}
+        {toast.show && (
+          <div style={styles.toastContainer}>
+            <div style={styles.toastIcon}>💬</div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#fff' }}>{toast.title}</span>
+              <span style={{ fontSize: '12px', color: '#ccc', marginTop: '2px' }}>{toast.body}</span>
+            </div>
+          </div>
+        )}
+
         <div style={styles.header}>
           <button onClick={() => setActiveChat(null)} style={styles.backBtn}>←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -266,7 +270,7 @@ const ChatDashboard = ({ onBack }) => {
 };
 
 const styles = {
-  container: { backgroundColor: '#0a0a0c', minHeight: '100vh', display: 'flex', flexDirection: 'column', color: '#fff', fontFamily: 'sans-serif' },
+  container: { backgroundColor: '#0a0a0c', minHeight: '100vh', display: 'flex', flexDirection: 'column', color: '#fff', fontFamily: 'sans-serif', position: 'relative' },
   header: { display: 'flex', alignItems: 'center', padding: '20px', borderBottom: '1px solid #1a1c23', backgroundColor: '#16181d' },
   backBtn: { background: 'none', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer', marginRight: '15px' },
   title: { margin: 0, fontSize: '18px' },
@@ -284,7 +288,11 @@ const styles = {
   recentChatCard: { display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', backgroundColor: '#16181d', borderRadius: '8px', cursor: 'pointer', border: '1px solid #2a2d35' },
   loadingContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '40px', gap: '15px' },
   spinner: { width: '40px', height: '40px', border: '4px solid rgba(255, 102, 178, 0.1)', borderTop: '4px solid #ff66b2', borderRadius: '50%', animation: 'spin 1s linear infinite' },
-  loadingText: { color: '#888', fontSize: '14px' }
+  loadingText: { color: '#888', fontSize: '14px' },
+  
+  // THE FIX: Notification Styles
+  toastContainer: { position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#16181d', border: '1px solid #ff66b2', borderRadius: '12px', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.8)', zIndex: 9999, width: '85%', maxWidth: '350px', animation: 'slideDown 0.3s ease-out' },
+  toastIcon: { fontSize: '24px' }
 };
 
 export default ChatDashboard;

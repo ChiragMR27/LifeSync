@@ -23,18 +23,17 @@ const GroceryList = ({ groupId, onBack }) => {
   
   const [isLoading, setIsLoading] = useState(true);
 
-  // THE FIX: Notification trackers
+  // THE FIX: Custom Toast State
+  const [toast, setToast] = useState({ show: false, title: '', body: '' });
   const prevItemsLength = useRef(0);
   const initialLoadDone = useRef(false);
 
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
-  // Ask for permission on load
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
+  const showToast = (title, body) => {
+    setToast({ show: true, title, body });
+    setTimeout(() => setToast({ show: false, title: '', body: '' }), 4000);
+  };
 
   const fetchGroupDetails = async () => {
     try {
@@ -92,22 +91,18 @@ const GroceryList = ({ groupId, onBack }) => {
     }
   }, [isLoading]);
 
-  // THE FIX: Trigger Native Notification if a new grocery item is added!
+  // THE FIX: Trigger In-App Notification if a new grocery item is added!
   useEffect(() => {
     if (initialLoadDone.current && items.length > prevItemsLength.current) {
       const newItemObj = items[items.length - 1]; 
       
-      if (newItemObj && newItemObj.addedBy && newItemObj.addedBy !== currentUserEmail && Notification.permission === 'granted') {
+      if (newItemObj && newItemObj.addedBy && newItemObj.addedBy !== currentUserEmail) {
         const senderName = memberUsernames[newItemObj.addedBy] || newItemObj.addedBy.split('@')[0];
-        
-        const notif = new Notification(`Grocery Update in ${groupDetails?.name || 'Group'}`, { 
-          body: `${senderName} added: ${newItemObj.text}` 
-        });
-        notif.onclick = () => window.focus();
+        showToast(`Grocery Update`, `${senderName} added: ${newItemObj.text}`);
       }
     }
     prevItemsLength.current = items.length;
-  }, [items, currentUserEmail, memberUsernames, groupDetails]);
+  }, [items, currentUserEmail, memberUsernames]);
 
   useEffect(() => {
     if (membersList.length > 0) {
@@ -246,7 +241,18 @@ const GroceryList = ({ groupId, onBack }) => {
 
   return (
     <div style={styles.container}>
-      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } @keyframes slideDown { from { top: -50px; opacity: 0; } to { top: 20px; opacity: 1; } }`}</style>
+
+      {/* THE FIX: In-App Toast Notification */}
+      {toast.show && (
+        <div style={styles.toastContainer}>
+          <div style={styles.toastIcon}>🛒</div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#fff' }}>{toast.title}</span>
+            <span style={{ fontSize: '12px', color: '#ccc', marginTop: '2px' }}>{toast.body}</span>
+          </div>
+        </div>
+      )}
 
       <div style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -356,6 +362,7 @@ const GroceryList = ({ groupId, onBack }) => {
         )}
       </div>
 
+      {/* Modals remain exactly the same */}
       {showQuantityModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
@@ -467,7 +474,11 @@ const styles = {
   modalAddBtn: { backgroundColor: '#00e5ff', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
   loadingContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '80px', gap: '15px' },
   spinner: { width: '40px', height: '40px', border: '4px solid rgba(0, 229, 255, 0.1)', borderTop: '4px solid #00e5ff', borderRadius: '50%', animation: 'spin 1s linear infinite' },
-  loadingText: { color: '#888', fontSize: '14px' }
+  loadingText: { color: '#888', fontSize: '14px' },
+  
+  // THE FIX: Notification Styles
+  toastContainer: { position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#16181d', border: '1px solid #00e5ff', borderRadius: '12px', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.8)', zIndex: 9999, width: '85%', maxWidth: '350px', animation: 'slideDown 0.3s ease-out' },
+  toastIcon: { fontSize: '24px' }
 };
 
 export default GroceryList;

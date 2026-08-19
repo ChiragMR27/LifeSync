@@ -12,18 +12,17 @@ const GroupChat = ({ groupId, onBack }) => {
   const [memberUsernames, setMemberUsernames] = useState({});
   const [isLoading, setIsLoading] = useState(true); 
 
-  // THE FIX: Notification trackers
+  // THE FIX: Custom Toast State
+  const [toast, setToast] = useState({ show: false, title: '', body: '' });
   const prevMsgLength = useRef(0);
   const initialLoadDone = useRef(false);
 
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
-  // Ask for permission on load
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
+  const showToast = (title, body) => {
+    setToast({ show: true, title, body });
+    setTimeout(() => setToast({ show: false, title: '', body: '' }), 4000);
+  };
 
   const fetchGroupDetails = async () => {
     try {
@@ -87,17 +86,13 @@ const GroupChat = ({ groupId, onBack }) => {
     }
   }, [isLoading]);
 
-  // THE FIX: Trigger Native Notification if a new group message arrives!
+  // THE FIX: Trigger In-App Notification if a new group message arrives!
   useEffect(() => {
     if (initialLoadDone.current && messages.length > prevMsgLength.current) {
       const newMsg = messages[messages.length - 1];
-      if (newMsg && newMsg.senderEmail !== currentUserEmail && Notification.permission === 'granted') {
+      if (newMsg && newMsg.senderEmail !== currentUserEmail) {
         const senderName = memberUsernames[newMsg.senderEmail] || newMsg.senderEmail.split('@')[0];
-        
-        const notif = new Notification(`${groupDetails?.name || 'Group Chat'}`, { 
-          body: `${senderName}: ${newMsg.text}`
-        });
-        notif.onclick = () => window.focus();
+        showToast(groupDetails?.name || 'Group Chat', `${senderName}: ${newMsg.text}`);
       }
     }
     prevMsgLength.current = messages.length;
@@ -183,7 +178,18 @@ const GroupChat = ({ groupId, onBack }) => {
 
   return (
     <div style={styles.container}>
-      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } @keyframes slideDown { from { top: -50px; opacity: 0; } to { top: 20px; opacity: 1; } }`}</style>
+
+      {/* THE FIX: In-App Toast Notification */}
+      {toast.show && (
+        <div style={styles.toastContainer}>
+          <div style={styles.toastIcon}>💬</div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#fff' }}>{toast.title}</span>
+            <span style={{ fontSize: '12px', color: '#ccc', marginTop: '2px' }}>{toast.body}</span>
+          </div>
+        </div>
+      )}
 
       <div style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
@@ -324,7 +330,11 @@ const styles = {
   modalAddBtn: { backgroundColor: '#ff66b2', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
   loadingContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: '80px', gap: '15px' },
   spinner: { width: '40px', height: '40px', border: '4px solid rgba(255, 102, 178, 0.1)', borderTop: '4px solid #ff66b2', borderRadius: '50%', animation: 'spin 1s linear infinite' },
-  loadingText: { color: '#888', fontSize: '14px' }
+  loadingText: { color: '#888', fontSize: '14px' },
+
+  // THE FIX: Notification Styles
+  toastContainer: { position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#16181d', border: '1px solid #ff66b2', borderRadius: '12px', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.8)', zIndex: 9999, width: '85%', maxWidth: '350px', animation: 'slideDown 0.3s ease-out' },
+  toastIcon: { fontSize: '24px' }
 };
 
 export default GroupChat;

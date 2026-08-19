@@ -6,11 +6,14 @@ const GroceryList = ({ groupId, onBack }) => {
   const [newItem, setNewItem] = useState('');
   const [items, setItems] = useState([]);
   
+  const [groupDetails, setGroupDetails] = useState(null); // Added to store the group name
   const [membersCount, setMembersCount] = useState(1);
   const [membersList, setMembersList] = useState([]);
   const [leaderEmail, setLeaderEmail] = useState('');
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
+  
+  const [memberUsernames, setMemberUsernames] = useState({}); // Added to display real names
 
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [itemToMove, setItemToMove] = useState(null);
@@ -26,6 +29,7 @@ const GroceryList = ({ groupId, onBack }) => {
       const currentGroup = response.data.find(g => String(g.id) === String(groupId));
       
       if (currentGroup) {
+        setGroupDetails(currentGroup);
         setMembersCount(currentGroup.membersCount);
         setLeaderEmail(String(currentGroup.leaderEmail || '').toLowerCase().trim());
         
@@ -46,12 +50,28 @@ const GroceryList = ({ groupId, onBack }) => {
     }
   };
 
+  const fetchMemberUsernames = async (membersToFetch) => {
+    if (!membersToFetch || membersToFetch.length === 0) return;
+    try {
+      const response = await authApi.post('/get-usernames', membersToFetch);
+      setMemberUsernames(response.data);
+    } catch (error) {
+      console.error("Error fetching usernames:", error);
+    }
+  };
+
   useEffect(() => {
     if (groupId) {
       fetchGroupDetails();
       fetchGroceries();
     }
   }, [groupId]);
+
+  useEffect(() => {
+    if (membersList.length > 0) {
+      fetchMemberUsernames(membersList);
+    }
+  }, [membersList]);
 
   const handleAddItem = async (e, isDefaultTarget) => {
     e.preventDefault();
@@ -64,7 +84,6 @@ const GroceryList = ({ groupId, onBack }) => {
       return;
     }
 
-    // THE FIX: The database payload and save logic is fully restored
     const payload = {
       text: newItem,
       isDefault: true, 
@@ -170,11 +189,36 @@ const GroceryList = ({ groupId, onBack }) => {
     }
   };
 
+  const handleRemoveMember = async (emailToRemove) => {
+    const confirmDelete = window.confirm(`Are you sure you want to kick ${emailToRemove} from the group?`);
+    if (!confirmDelete) return;
+
+    try {
+      await familyApi.delete(`/groups/${groupId}/members?memberEmail=${emailToRemove}&requesterEmail=${currentUserEmail}`);
+      fetchGroupDetails();
+    } catch (error) {
+      console.error("Error removing member:", error);
+      alert("Failed to remove member. Only the leader can do this.");
+    }
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <button onClick={onBack} style={styles.backBtn}>←</button>
-        <h2 style={styles.title}>Family Groceries</h2>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <button onClick={onBack} style={styles.backBtn}>←</button>
+          
+          {/* THE FIX: Clickable header to open Manage Members */}
+          <div 
+            style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
+            onClick={() => setShowAddMember(true)}
+          >
+            <h2 style={styles.title}>{groupDetails?.name || 'Loading...'}</h2>
+            <span style={{ fontSize: '11px', color: '#888' }}>
+              {membersCount} members • Tap for info
+            </span>
+          </div>
+        </div>
       </div>
 
       <div style={styles.tabContainer}>
@@ -184,11 +228,6 @@ const GroceryList = ({ groupId, onBack }) => {
       </div>
 
       <div style={styles.content}>
-        <div style={styles.actionRow}>
-          <button onClick={() => setShowAddMember(true)} style={styles.addMemberBtn}>Manage Members</button>
-          <span style={styles.memberCount}>{membersCount} members</span>
-        </div>
-
         {activeTab === 'shopping' && (
           <>
             <form onSubmit={(e) => e.preventDefault()} style={styles.inputForm}>
@@ -302,28 +341,40 @@ const GroceryList = ({ groupId, onBack }) => {
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0 }}>Group Members</h3>
+              <h3 style={{ margin: 0 }}>Group Info</h3>
               <button onClick={() => setShowAddMember(false)} style={styles.closeBtn}>✕</button>
             </div>
             
             <div style={styles.memberListContainer}>
-              {membersList.map(email => (
-                <div key={email} style={styles.memberRow}>
-                  <div>
-                    <span style={{ fontSize: '14px', color: '#fff' }}>{email.split('@')[0]}</span>
-                    {email === leaderEmail && <span style={{ marginLeft: '8px', fontSize: '10px', color: '#00e5ff', border: '1px solid #00e5ff', padding: '2px 6px', borderRadius: '10px' }}>Leader</span>}
+              {membersList.map(email => {
+                const isLeader = email === leaderEmail;
+                const canIKickAndPromote = currentUserEmail === leaderEmail && !isLeader;
+                const displayUsername = memberUsernames[email] || email.split('@')[0];
+
+                return (
+                  <div key={email} style={styles.memberRow}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>{displayUsername}</span>
+                      <span style={{ fontSize: '10px', color: '#888' }}>{email}</span>
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                      {isLeader && <span style={styles.leaderBadge}>Leader</span>}
+                      {canIKickAndPromote && (
+                        <>
+                          <button onClick={() => handleMakeLeader(email)} style={styles.makeLeaderBtn}>Make Leader</button>
+                          <button onClick={() => handleRemoveMember(email)} style={styles.kickBtn}>Kick</button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  
-                  {currentUserEmail === leaderEmail && email !== leaderEmail && (
-                    <button onClick={() => handleMakeLeader(email)} style={styles.makeLeaderBtn}>Make Leader</button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <hr style={{ borderColor: '#2a2d35', margin: '20px 0' }} />
 
-            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px' }}>Invite New Member</h4>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px' }}>Add Participant</h4>
             <form onSubmit={handleAddMemberSubmit} style={{ display: 'flex', gap: '10px' }}>
               <input type="email" placeholder="user@example.com" value={newMemberEmail} onChange={(e) => setNewMemberEmail(e.target.value)} style={styles.modalInput} required />
               <button type="submit" style={styles.modalAddBtn}>Add</button>
@@ -337,15 +388,12 @@ const GroceryList = ({ groupId, onBack }) => {
 
 const styles = {
   container: { backgroundColor: '#0a0a0c', minHeight: '100vh', color: '#fff', fontFamily: 'sans-serif', position: 'relative' },
-  header: { display: 'flex', alignItems: 'center', padding: '20px', borderBottom: '1px solid #1a1c23', backgroundColor: '#16181d' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderBottom: '1px solid #1a1c23', backgroundColor: '#16181d' },
   backBtn: { background: 'none', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer', marginRight: '15px' },
   title: { margin: 0, fontSize: '18px' },
   tabContainer: { display: 'flex', backgroundColor: '#16181d', borderBottom: '1px solid #2a2d35' },
   tab: { flex: 1, textAlign: 'center', padding: '15px 0', fontSize: '14px', cursor: 'pointer', fontWeight: 'bold' },
   content: { padding: '20px' },
-  actionRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
-  addMemberBtn: { backgroundColor: 'transparent', border: '1px solid #ffc107', color: '#ffc107', padding: '6px 12px', borderRadius: '16px', fontSize: '12px', cursor: 'pointer' },
-  memberCount: { fontSize: '12px', color: '#888' },
   inputForm: { display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' },
   input: { padding: '12px', backgroundColor: '#16181d', border: '1px solid #2a2d35', borderRadius: '8px', color: '#fff', fontSize: '14px' },
   addBtnDefault: { flex: 1, backgroundColor: '#2a2d35', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' },
@@ -360,7 +408,9 @@ const styles = {
   closeBtn: { background: 'none', border: 'none', color: '#888', fontSize: '18px', cursor: 'pointer' },
   memberListContainer: { maxHeight: '150px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' },
   memberRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0a0a0c', padding: '10px', borderRadius: '6px' },
+  leaderBadge: { fontSize: '10px', color: '#00e5ff', border: '1px solid #00e5ff', padding: '2px 6px', borderRadius: '10px' },
   makeLeaderBtn: { backgroundColor: 'transparent', border: '1px solid #ffc107', color: '#ffc107', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
+  kickBtn: { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
   modalInput: { flex: 1, padding: '10px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' },
   modalAddBtn: { backgroundColor: '#00e5ff', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }
 };

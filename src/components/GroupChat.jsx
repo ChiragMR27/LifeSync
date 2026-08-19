@@ -9,6 +9,9 @@ const GroupChat = ({ groupId, onBack }) => {
   // Member Management States
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
+  
+  // THE FIX: State to hold the fetched usernames
+  const [memberUsernames, setMemberUsernames] = useState({});
 
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
 
@@ -34,6 +37,17 @@ const GroupChat = ({ groupId, onBack }) => {
     }
   };
 
+  // THE FIX: Fetch the actual usernames for the emails stored in the group
+  const fetchMemberUsernames = async (membersList) => {
+    if (!membersList || membersList.length === 0) return;
+    try {
+      const response = await authApi.post('/get-usernames', membersList);
+      setMemberUsernames(response.data);
+    } catch (error) {
+      console.error("Error fetching usernames:", error);
+    }
+  };
+
   useEffect(() => {
     if (groupId) {
       fetchGroupDetails();
@@ -42,6 +56,13 @@ const GroupChat = ({ groupId, onBack }) => {
       return () => clearInterval(interval);
     }
   }, [groupId]);
+
+  // When group details load or change, grab the names for the modal
+  useEffect(() => {
+    if (groupDetails?.members) {
+      fetchMemberUsernames(groupDetails.members);
+    }
+  }, [groupDetails?.members]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -67,7 +88,6 @@ const GroupChat = ({ groupId, onBack }) => {
     const emailToCheck = newMemberEmail.toLowerCase().trim();
 
     try {
-      // Ask Auth Service if user exists
       const checkResponse = await authApi.get(`/check-email?email=${emailToCheck}`);
       const userExists = checkResponse.data; 
 
@@ -94,7 +114,6 @@ const GroupChat = ({ groupId, onBack }) => {
     }
   };
 
-  // THE FIX: Leader-only Delete Functionality
   const handleRemoveMember = async (emailToRemove) => {
     const confirmDelete = window.confirm(`Are you sure you want to kick ${emailToRemove} from the group?`);
     if (!confirmDelete) return;
@@ -130,10 +149,13 @@ const GroupChat = ({ groupId, onBack }) => {
         
         {messages.map((msg) => {
           const isMe = msg.senderEmail === currentUserEmail;
+          // Apply the fetched username to message bubbles too!
+          const senderName = memberUsernames[msg.senderEmail] || msg.senderEmail.split('@')[0];
+
           return (
             <div key={msg.id} style={{ ...styles.messageBubbleContainer, justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
               <div style={{ ...styles.messageBubble, backgroundColor: isMe ? '#ff4d4d' : '#2a2d35', color: isMe ? '#000' : '#fff' }}>
-                {!isMe && <span style={{ fontSize: '10px', color: '#ffc107', fontWeight: 'bold', marginBottom: '2px' }}>{msg.senderEmail.split('@')[0]}</span>}
+                {!isMe && <span style={{ fontSize: '10px', color: '#ffc107', fontWeight: 'bold', marginBottom: '2px' }}>{senderName}</span>}
                 <p style={{ margin: 0, fontSize: '14px' }}>{msg.text}</p>
                 <span style={{ fontSize: '9px', opacity: 0.6, alignSelf: 'flex-end', marginTop: '4px' }}>{msg.timestamp}</span>
               </div>
@@ -153,7 +175,6 @@ const GroupChat = ({ groupId, onBack }) => {
         <button type="submit" style={styles.sendBtn}>➤</button>
       </form>
 
-      {/* Leader Management Modal */}
       {showMembersModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
@@ -166,11 +187,13 @@ const GroupChat = ({ groupId, onBack }) => {
               {groupDetails?.members.map(email => {
                 const isLeader = email === groupDetails.leaderEmail;
                 const canIKick = currentUserEmail === groupDetails.leaderEmail && !isLeader;
+                // THE FIX: Uses the looked-up username or falls back to the split email
+                const displayUsername = memberUsernames[email] || email.split('@')[0];
 
                 return (
                   <div key={email} style={styles.memberRow}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '14px', color: '#fff' }}>{email.split('@')[0]}</span>
+                      <span style={{ fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>{displayUsername}</span>
                       <span style={{ fontSize: '10px', color: '#888' }}>{email}</span>
                     </div>
                     

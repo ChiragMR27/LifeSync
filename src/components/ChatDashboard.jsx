@@ -163,7 +163,7 @@ const ChatDashboard = ({ onBack }) => {
 
       <div style={styles.content}>
         <div style={styles.searchContainer}>
-          <h3 style={{ fontSize: '14px', marginBottom: '15px' }}>Start a Private Chat</h3>
+          
           <form onSubmit={handleSearchAndChat} style={{ display: 'flex', gap: '10px' }}>
             <input 
               type="email" 
@@ -175,9 +175,7 @@ const ChatDashboard = ({ onBack }) => {
             />
             <button type="submit" style={styles.searchBtn}>Chat</button>
           </form>
-          <p style={{ fontSize: '12px', color: '#888', marginTop: '10px' }}>
-            If the user exists, you will jump straight into a private text. If they don't, you can send them an invite!
-          </p>
+          
         </div>
 
         <div style={{ marginTop: '30px' }}>

@@ -6,11 +6,9 @@ const GroupChat = ({ groupId, onBack }) => {
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   
-  // Member Management States
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
   
-  // THE FIX: State to hold the fetched usernames
   const [memberUsernames, setMemberUsernames] = useState({});
 
   const currentUserEmail = String(localStorage.getItem('userEmail') || '').toLowerCase().trim();
@@ -37,7 +35,6 @@ const GroupChat = ({ groupId, onBack }) => {
     }
   };
 
-  // THE FIX: Fetch the actual usernames for the emails stored in the group
   const fetchMemberUsernames = async (membersList) => {
     if (!membersList || membersList.length === 0) return;
     try {
@@ -57,7 +54,6 @@ const GroupChat = ({ groupId, onBack }) => {
     }
   }, [groupId]);
 
-  // When group details load or change, grab the names for the modal
   useEffect(() => {
     if (groupDetails?.members) {
       fetchMemberUsernames(groupDetails.members);
@@ -114,6 +110,15 @@ const GroupChat = ({ groupId, onBack }) => {
     }
   };
 
+  const handleMakeLeader = async (email) => {
+    try {
+      await familyApi.put(`/groups/${groupId}/leader`, { newLeaderEmail: email });
+      fetchGroupDetails(); 
+    } catch (error) {
+      console.error("Error transferring leadership:", error);
+    }
+  };
+
   const handleRemoveMember = async (emailToRemove) => {
     const confirmDelete = window.confirm(`Are you sure you want to kick ${emailToRemove} from the group?`);
     if (!confirmDelete) return;
@@ -132,14 +137,18 @@ const GroupChat = ({ groupId, onBack }) => {
       <div style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <button onClick={onBack} style={styles.backBtn}>←</button>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <h2 style={styles.title}>{groupDetails?.name || 'Group Chat'}</h2>
+          
+          {/* Clickable header to open Group Info */}
+          <div 
+            style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
+            onClick={() => setShowMembersModal(true)}
+          >
+            <h2 style={styles.title}>{groupDetails?.name || 'Loading...'}</h2>
             <span style={{ fontSize: '11px', color: '#888' }}>
-              {groupDetails?.members?.length || 1} members
+              {groupDetails?.members?.length || 1} members • Tap for info
             </span>
           </div>
         </div>
-        <button onClick={() => setShowMembersModal(true)} style={styles.manageBtn}>Manage</button>
       </div>
 
       <div style={styles.chatWindow}>
@@ -149,7 +158,6 @@ const GroupChat = ({ groupId, onBack }) => {
         
         {messages.map((msg) => {
           const isMe = msg.senderEmail === currentUserEmail;
-          // Apply the fetched username to message bubbles too!
           const senderName = memberUsernames[msg.senderEmail] || msg.senderEmail.split('@')[0];
 
           return (
@@ -179,15 +187,14 @@ const GroupChat = ({ groupId, onBack }) => {
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0 }}>Manage Group</h3>
+              <h3 style={{ margin: 0 }}>Group Info</h3>
               <button onClick={() => setShowMembersModal(false)} style={styles.closeBtn}>✕</button>
             </div>
             
             <div style={styles.memberListContainer}>
               {groupDetails?.members.map(email => {
                 const isLeader = email === groupDetails.leaderEmail;
-                const canIKick = currentUserEmail === groupDetails.leaderEmail && !isLeader;
-                // THE FIX: Uses the looked-up username or falls back to the split email
+                const canIKickAndPromote = currentUserEmail === groupDetails.leaderEmail && !isLeader;
                 const displayUsername = memberUsernames[email] || email.split('@')[0];
 
                 return (
@@ -199,8 +206,11 @@ const GroupChat = ({ groupId, onBack }) => {
                     
                     <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                       {isLeader && <span style={styles.leaderBadge}>Leader</span>}
-                      {canIKick && (
-                        <button onClick={() => handleRemoveMember(email)} style={styles.kickBtn}>Kick</button>
+                      {canIKickAndPromote && (
+                        <>
+                          <button onClick={() => handleMakeLeader(email)} style={styles.makeLeaderBtn}>Make Leader</button>
+                          <button onClick={() => handleRemoveMember(email)} style={styles.kickBtn}>Kick</button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -234,7 +244,6 @@ const styles = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderBottom: '1px solid #1a1c23', backgroundColor: '#16181d' },
   backBtn: { background: 'none', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer', marginRight: '15px' },
   title: { margin: 0, fontSize: '18px' },
-  manageBtn: { backgroundColor: 'transparent', border: '1px solid #ff4d4d', color: '#ff4d4d', padding: '6px 12px', borderRadius: '16px', fontSize: '12px', cursor: 'pointer' },
   chatWindow: { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', backgroundColor: '#0a0a0c' },
   messageBubbleContainer: { display: 'flex', width: '100%', marginBottom: '15px' },
   messageBubble: { maxWidth: '75%', padding: '10px 15px', borderRadius: '12px', display: 'flex', flexDirection: 'column' },
@@ -248,6 +257,7 @@ const styles = {
   memberListContainer: { maxHeight: '150px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' },
   memberRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0a0a0c', padding: '10px', borderRadius: '6px' },
   leaderBadge: { fontSize: '10px', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '2px 6px', borderRadius: '10px' },
+  makeLeaderBtn: { backgroundColor: 'transparent', border: '1px solid #ffc107', color: '#ffc107', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
   kickBtn: { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' },
   modalInput: { flex: 1, padding: '10px', backgroundColor: '#0a0a0c', border: '1px solid #2a2d35', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' },
   modalAddBtn: { backgroundColor: '#ff4d4d', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }
